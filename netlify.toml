@@ -1,0 +1,20 @@
+# netlify.toml
+
+# This section tells Netlify how to build your project.
+[build]
+  # The command to run to build your site for production.
+  command = "npm run build"
+  
+  # The folder that contains the finished, built site.
+  publish = "dist"
+
+# This is the crucial rule for your Single-Page App.
+[[redirects]]
+  # For any path that is requested...
+  from = "/*"
+  
+  # ...redirect to the main index.html file.
+  to = "/index.html"
+  
+  # Send a "200 OK" status, which means "I found the page".
+  status = 200
