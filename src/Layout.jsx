@@ -26,8 +26,9 @@ export default function Layout() {
                             <li><Link to="/howitworks">How It Works</Link></li>
                         </ul>
                         {/* --- CORRECTED BUTTONS --- */}
-                        <Link className="btn btn-outline" to="/login">Login</Link>
                         <Link className="btn btn-primary" to="/activate">Start Free Trial</Link>
+                        <Link className="btn btn-outline" to="/login">Login</Link>
+                        
                     </nav>
 
                     <button className={`menu-toggle ${isMenuOpen ? 'is-active' : ''}`} onClick={toggleMenu} aria-label="Toggle menu"><span className="hamburger"></span></button>
