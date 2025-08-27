@@ -9,29 +9,32 @@ import OnboardingWizard from './OnboardingWizard.jsx';
 import LoginPage from './LoginPage.jsx';
 import DashboardPage from './DashboardPage.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
+import AdminDashboard from './AdminDashboard.jsx'; // <-- IMPORT aDMIN DASHBOARD
+import AdminRoute from './AdminRoute.jsx';       // <-- IMPORT aDMIN ROUTE
 
 function App() {
   return (
     <Routes>
-      {/* These are your public-facing pages */}
+      {/* Public Routes */}
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="howitworks" element={<HowItWorksPage />} />
         <Route path="socialproof" element={<SocialProofPage />} />
       </Route>
       
-      {/* These are standalone pages without the main header/footer */}
       <Route path="/activate" element={<OnboardingWizard />} />
       <Route path="/login" element={<LoginPage />} />
 
-      {/* This is your new, secure dashboard route */}
+      {/* Standard Protected Route for Agents */}
       <Route 
         path="/dashboard" 
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        } 
+        element={ <ProtectedRoute> <DashboardPage /> </ProtectedRoute> } 
+      />
+
+      {/* NEW Admin-Only Protected Route */}
+      <Route 
+        path="/admin"
+        element={ <AdminRoute> <AdminDashboard /> </AdminRoute> }
       />
     </Routes>
   );
