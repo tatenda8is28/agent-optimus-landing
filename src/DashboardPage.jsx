@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import MetricCard from './MetricCard.jsx';
 import './Dashboard.css';
 
+// --- No changes to this helper function ---
 function formatTimeAgo(timestamp) {
     if (!timestamp) return '...';
     const now = new Date();
@@ -35,40 +36,61 @@ export default function DashboardPage() {
     const [recentLeads, setRecentLeads] = useState([]);
     const [totalLeads, setTotalLeads] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null); // <-- NEW: State for storing errors
 
     useEffect(() => {
-        if (!user) return;
+        // --- START OF DEBUGGING SECTION ---
+        console.log("DashboardPage useEffect triggered.");
 
-        // Query 1: Get the 5 most recent leads for the activity feed in real-time
+        if (!user) {
+            console.log("No user found. Waiting for user data...");
+            return;
+        }
+
+        console.log("User is available. User UID:", user.uid);
+
+        // Define the query for recent leads
         const recentLeadsQuery = query(
             collection(db, 'leads'),
             where('agentId', '==', user.uid),
             orderBy('createdAt', 'desc'),
             limit(5)
         );
-        const unsubscribeRecent = onSnapshot(recentLeadsQuery, (snapshot) => {
-            const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setRecentLeads(leadsData);
-            setIsLoading(false);
-        });
 
-        // Query 2: Get a count of all leads for the metric card
-        // Note: For a large number of leads, this can be inefficient. 
-        // A better long-term solution is a summary document or a cloud function.
-        const allLeadsQuery = query(
-            collection(db, 'leads'),
-            where('agentId', '==', user.uid)
+        console.log("Attempting to create Firestore listener for recent leads...");
+
+        const unsubscribe = onSnapshot(recentLeadsQuery, 
+            (snapshot) => {
+                // This block runs when we successfully receive data
+                console.log("Firestore listener SUCCESS: Data received.");
+                console.log("Number of documents received:", snapshot.size);
+
+                const leadsData = snapshot.docs.map(doc => {
+                    console.log("Document data:", doc.data());
+                    return { id: doc.id, ...doc.data() };
+                });
+                
+                setRecentLeads(leadsData);
+                setTotalLeads(snapshot.size); // Using recent count for simplicity in debug
+                setIsLoading(false);
+                setError(null); // Clear any previous errors
+            }, 
+            (err) => {
+                // This block runs if the listener fails (e.g., permission denied)
+                console.error("Firestore listener FAILED:", err);
+                setError("Error: Could not fetch data. Check security rules and query constraints.");
+                setIsLoading(false);
+            }
         );
-        const unsubscribeTotal = onSnapshot(allLeadsQuery, (snapshot) => {
-            setTotalLeads(snapshot.size);
-        });
 
-        // Cleanup the listeners when the component unmounts
+        // This is the cleanup function
         return () => {
-            unsubscribeRecent();
-            unsubscribeTotal();
+            console.log("Cleaning up Firestore listener.");
+            unsubscribe();
         };
-    }, [user]);
+        // --- END OF DEBUGGING SECTION ---
+
+    }, [user]); // This effect depends on the user object
 
     return (
         <div className="wizard-container">
@@ -81,15 +103,19 @@ export default function DashboardPage() {
                 <p style={{marginTop: '-20px', marginBottom: '32px'}}>You are logged in as: <strong>{user?.email}</strong></p>
                 
                 <div className="metrics-grid">
-                    <MetricCard title="Total Leads Captured" value={totalLeads} isLoading={isLoading} />
+                    <MetricCard title="Recent Leads" value={totalLeads} isLoading={isLoading} />
                     <MetricCard title="Viewings Booked" value={0} isLoading={isLoading} />
                 </div>
 
                 <div className="activity-feed">
                     <h3>Recent Activity</h3>
+                    {/* --- NEW: Display error messages on the screen --- */}
+                    {error && <p style={{ color: 'red', fontWeight: 'bold' }}>{error}</p>}
+                    
                     {isLoading && <p>Loading activity...</p>}
-                    {!isLoading && recentLeads.length === 0 && <p>No recent activity. Your agent is ready for new leads!</p>}
-                    {recentLeads.map(lead => (
+                    {!isLoading && !error && recentLeads.length === 0 && <p>No recent activity. Your agent is ready for new leads!</p>}
+                    
+                    {!error && recentLeads.map(lead => (
                         <div key={lead.id} className="activity-item">
                             <div className="activity-details">
                                 {lead.name} 
