@@ -4,9 +4,10 @@
     display: flex;
     min-height: 100vh;
     background-color: var(--bg-light);
+    position: relative; /* <-- Add relative positioning for overlay context */
 }
 
-/* --- Sidebar (Desktop First) --- */
+/* --- Sidebar --- */
 .sidebar {
     width: 260px;
     background-color: var(--bg-white);
@@ -16,6 +17,7 @@
     padding: 24px;
     flex-shrink: 0;
     transition: transform 0.3s ease;
+    z-index: 1001;
 }
 /* ... other sidebar styles ... */
 .sidebar-header { margin-bottom: 32px; }
@@ -41,8 +43,8 @@
     height: 60px;
     background-color: var(--bg-white);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 40px;
-    display: none; /* Only shown on mobile */
+    padding: 0 24px;
+    display: none; /* Hidden by default, shown on mobile */
     align-items: center;
     flex-shrink: 0;
 }
@@ -60,7 +62,6 @@
     overflow-y: auto;
 }
 .sidebar-overlay {
-    display: none; 
     position: fixed;
     top: 0;
     left: 0;
@@ -68,7 +69,16 @@
     bottom: 0;
     background-color: rgba(0,0,0,0.5);
     z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
+
+.dashboard-container.sidebar-is-open .sidebar-overlay {
+    opacity: 1;
+    visibility: visible;
+}
+
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 900px) {
@@ -77,19 +87,15 @@
         left: 0;
         top: 0;
         bottom: 0;
-        transform: translateX(-100%); /* Start off-screen */
+        transform: translateX(-100%);
     }
     .sidebar.is-open {
         transform: translateX(0);
         box-shadow: 0 0 40px rgba(0,0,0,0.1);
     }
     
-    .dashboard-container.sidebar-is-open .sidebar-overlay {
-        display: block;
-    }
-
     .main-header {
-        display: flex; /* Show the header on mobile */
+        display: flex;
     }
 
     .main-content {
