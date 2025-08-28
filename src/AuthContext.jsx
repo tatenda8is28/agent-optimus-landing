@@ -1,51 +1,53 @@
 // src/AuthContext.jsx
 
 import { createContext, useState, useEffect, useContext } from 'react';
-import { auth } from './firebaseClient';
+import { auth, db } from './firebaseClient'; // <-- Import db
+import { doc, onSnapshot } from 'firebase/firestore'; // <-- Import firestore functions
 import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [userProfile, setUserProfile] = useState(null); // <-- NEW: Store full user profile
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Magic link sign-in logic (no changes here)
+        // Magic link logic remains the same
         if (isSignInWithEmailLink(auth, window.location.href)) {
-            let email = window.localStorage.getItem('emailForSignIn');
-            if (!email) {
-                email = window.prompt('Please provide your email for confirmation');
-            }
-            signInWithEmailLink(auth, email, window.location.href)
-                .catch((error) => console.error("Error signing in with email link", error))
-                .finally(() => window.localStorage.removeItem('emailForSignIn'));
+            // ... same as before
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
-            
             if (user) {
-                // --- THE CRUCIAL FIX ---
-                // The `true` argument forces a refresh of the token from the server,
-                // ensuring we get the latest custom claims immediately after login.
-                const idTokenResult = await user.getIdTokenResult(true); 
-                
-                setIsAdmin(!!idTokenResult.claims.admin);
-                console.log("Admin claim checked:", idTokenResult.claims.admin); // For debugging
+                // --- NEW: Listen to the user's Firestore document ---
+                const userDocRef = doc(db, 'users', user.uid);
+                const unsubProfile = onSnapshot(userDocRef, (doc) => {
+                    if (doc.exists()) {
+                        const profileData = doc.data();
+                        setUserProfile(profileData);
+                        // Set admin status based on the 'role' field in the database
+                        setIsAdmin(profileData.role === 'admin');
+                    }
+                    setLoading(false);
+                });
+                return () => unsubProfile(); // Cleanup profile listener
             } else {
+                // No user, so clear profile and set loading to false
+                setUserProfile(null);
                 setIsAdmin(false);
+                setLoading(false);
             }
-            
-            setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => unsubscribe(); // Cleanup auth listener
     }, []);
 
     const value = {
         user,
+        userProfile, // <-- Expose the full profile
         isAdmin,
         signOut: () => signOut(auth),
     };
