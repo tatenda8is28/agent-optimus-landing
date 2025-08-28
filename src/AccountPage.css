@@ -1,0 +1,28 @@
+/* src/AccountPage.css */
+.danger-zone {
+    border-color: #fca5a5;
+}
+.danger-zone h3 {
+    color: var(--red-dark);
+}
+.danger-zone-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+}
+.danger-zone-item + .danger-zone-item {
+    border-top: 1px solid var(--border-color);
+}
+.danger-zone-item p {
+    margin: 4px 0 0;
+    color: var(--ink-light);
+    font-size: 14px;
+}
+.danger-btn {
+    border-color: var(--red-dark);
+    color: var(--red-dark);
+}
+.danger-btn:hover {
+    background-color: var(--red);
+}
