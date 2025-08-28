@@ -104,3 +104,10 @@
         display: none; 
     }
 }
+/* Add this to the bottom of DashboardLayout.css */
+
+.nav-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 8px 0;
+}
