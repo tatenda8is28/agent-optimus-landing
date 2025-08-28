@@ -1,7 +1,7 @@
 // src/AuthContext.jsx
 
 import { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom'; // <-- IMPORT useNavigate
+import { useNavigate, useLocation } from 'react-router-dom'; // <-- ADD useLocation
 import { auth, db } from './firebaseClient';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
@@ -13,7 +13,8 @@ export function AuthProvider({ children }) {
     const [userProfile, setUserProfile] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate(); // <-- GET THE NAVIGATE FUNCTION
+    const navigate = useNavigate();
+    const location = useLocation(); // <-- GET THE CURRENT LOCATION
 
     useEffect(() => {
         // --- THIS IS THE CORRECTED MAGIC LINK LOGIC ---
@@ -24,17 +25,13 @@ export function AuthProvider({ children }) {
             }
 
             signInWithEmailLink(auth, email, window.location.href)
-                .then(() => {
-                    // ** THE CRUCIAL FIX **
-                    // After successful sign-in, remove the magic link parameters from the URL.
-                    // This prevents the sign-in loop.
-                    navigate('/dashboard', { replace: true }); 
+                .catch((error) => console.error("Error signing in with email link", error))
+                .finally(() => {
+                    // ** CRITICAL **
+                    // Do NOT redirect here. Let the onAuthStateChanged listener handle it.
+                    // Just clean the URL to prevent the loop.
+                    navigate(location.pathname, { replace: true });
                     window.localStorage.removeItem('emailForSignIn');
-                })
-                .catch((error) => {
-                    console.error("Error signing in with email link", error);
-                    // If sign-in fails, send them back to the login page to try again.
-                    navigate('/login', { replace: true });
                 });
         }
 
@@ -46,7 +43,19 @@ export function AuthProvider({ children }) {
                     if (doc.exists()) {
                         const profileData = doc.data();
                         setUserProfile(profileData);
-                        setIsAdmin(profileData.role === 'admin');
+                        const isAdminUser = profileData.role === 'admin';
+                        setIsAdmin(isAdminUser);
+
+                        // --- THE INTELLIGENT REDIRECT LOGIC ---
+                        // This runs only when we first detect the user's profile.
+                        // We check if the user is on the login page, which means they just logged in.
+                        if (location.pathname === '/login') {
+                            if (isAdminUser) {
+                                navigate('/admin', { replace: true });
+                            } else {
+                                navigate('/dashboard', { replace: true });
+                            }
+                        }
                     }
                     setLoading(false);
                 });
@@ -59,7 +68,7 @@ export function AuthProvider({ children }) {
         });
 
         return () => unsubscribe();
-    }, [navigate]); // <-- ADD NAVIGATE TO DEPENDENCY ARRAY
+    }, [navigate, location]); // <-- ADD location to dependency array
 
     const value = {
         user,
@@ -78,9 +87,6 @@ export function AuthProvider({ children }) {
         </AuthContext.Provider>
     );
 }
-
-// NOTE: We need to wrap the AuthProvider with the Router in main.jsx for this to work.
-// I will provide that code next.
 
 export function useAuth() {
     return useContext(AuthContext);
