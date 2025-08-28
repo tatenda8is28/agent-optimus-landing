@@ -4,10 +4,11 @@ import { useAuth } from './AuthContext';
 import { Link } from 'react-router-dom';
 import logo from './assets/logo.png';
 import { db } from './firebaseClient';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // <-- NEW
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
-// --- NEW STYLING FOR THE ADMIN TABLE ---
+// ... (Styling objects remain the same)
 const tableStyle = { width: '100%', borderCollapse: 'collapse', marginTop: '24px' };
 const thStyle = { borderBottom: '2px solid #e2e8f0', padding: '12px', textAlign: 'left', color: '#475569' };
 const tdStyle = { borderBottom: '1px solid #e2e8f0', padding: '12px' };
@@ -20,20 +21,17 @@ const statusStyle = (status) => ({
     color: status === 'ACTIVE_TRIAL' ? '#065f46' : '#b45309',
 });
 
+
 export default function AdminDashboard() {
     const { user, signOut } = useAuth();
     const [allUsers, setAllUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isActivating, setIsActivating] = useState(null); // <-- NEW: State to track which user is being activated
 
     useEffect(() => {
-        // This query fetches all documents from the 'users' collection,
-        // ordered by when they were created.
-        const usersQuery = query(
-            collection(db, 'users'),
-            orderBy('createdAt', 'desc')
-        );
-
+        // ... (The data fetching logic remains the same)
+        const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
         const unsubscribe = onSnapshot(usersQuery, 
             (snapshot) => {
                 const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -42,14 +40,35 @@ export default function AdminDashboard() {
             },
             (err) => {
                 console.error("Firestore Error:", err);
-                setError("Failed to fetch user data. Ensure your security rules are correct for admins.");
+                setError("Failed to fetch user data.");
                 setIsLoading(false);
             }
         );
-
-        // Cleanup the listener
         return () => unsubscribe();
     }, []);
+
+    // --- NEW: Function to handle the button click ---
+    const handleActivate = async (userId) => {
+        if (!window.confirm("Are you sure you want to activate this user's trial?")) {
+            return;
+        }
+        
+        setIsActivating(userId); // Show loading state on the button
+        
+        const functions = getFunctions();
+        const activateUserTrial = httpsCallable(functions, 'activateUserTrial');
+        
+        try {
+            const result = await activateUserTrial({ userId: userId });
+            console.log('Function result:', result.data.message);
+            // The real-time listener will automatically update the UI
+        } catch (error) {
+            console.error('Error calling activate function:', error);
+            alert(`Failed to activate user: ${error.message}`);
+        } finally {
+            setIsActivating(null); // Hide loading state
+        }
+    };
 
     return (
         <div className="wizard-container">
@@ -60,12 +79,9 @@ export default function AdminDashboard() {
             <div className="wizard-content" style={{ maxWidth: '900px' }}>
                 <h1>Admin Dashboard</h1>
                 <p style={{ marginTop: '-20px', marginBottom: '32px' }}>Welcome, Admin: <strong>{user?.email}</strong></p>
-                
                 <h3>All User Signups</h3>
-                
                 {isLoading && <p>Loading users...</p>}
                 {error && <p style={{color: 'red'}}>{error}</p>}
-                
                 {!isLoading && !error && (
                     <div style={{ overflowX: 'auto' }}>
                         <table style={tableStyle}>
@@ -87,7 +103,13 @@ export default function AdminDashboard() {
                                         <td style={tdStyle}>{agent.createdAt ? agent.createdAt.toDate().toLocaleDateString() : '--'}</td>
                                         <td style={tdStyle}>
                                             {agent.status === 'TRIAL_PENDING_ACTIVATION' && (
-                                                <button className="btn btn-primary">Activate</button>
+                                                <button 
+                                                    className="btn btn-primary" 
+                                                    onClick={() => handleActivate(agent.id)}
+                                                    disabled={isActivating === agent.id}
+                                                >
+                                                    {isActivating === agent.id ? 'Activating...' : 'Activate'}
+                                                </button>
                                             )}
                                         </td>
                                     </tr>
