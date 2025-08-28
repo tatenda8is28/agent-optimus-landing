@@ -1,9 +1,8 @@
 // src/AuthContext.jsx
 
 import { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { auth, db } from './firebaseClient';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const AuthContext = createContext();
@@ -11,45 +10,34 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
+//<<<<<<< HEAD
     const [isAdmin, setIsAdmin] = useState(false);
+//=======
+//>>>>>>> 980a316 ([...])
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             if (user) {
                 const userDocRef = doc(db, 'users', user.uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists()) {
-                    // This is an existing user.
-                    const profileData = userDoc.data();
-                    setUserProfile(profileData);
-                    const isAdminUser = profileData.role === 'admin';
-                    setIsAdmin(isAdminUser);
-
-                    // Redirect based on role
-                    if (isAdminUser) {
-                        navigate('/admin', { replace: true });
-                    } else {
-                        navigate('/dashboard', { replace: true });
+                const unsubProfile = onSnapshot(userDocRef, (doc) => {
+                    if (doc.exists()) {
+                        const profileData = doc.data();
+                        setUserProfile(profileData);
+                        setIsAdmin(profileData.role === 'admin');
                     }
-                } else {
-                    // This is a brand new user signing in for the first time.
-                    // Send them to the wizard to complete their profile.
-                    navigate('/activate', { replace: true });
-                }
+                    setLoading(false);
+                });
+                return () => unsubProfile();
             } else {
-                // No user is logged in
                 setUserProfile(null);
                 setIsAdmin(false);
+                setLoading(false);
             }
-            setLoading(false);
         });
-
         return () => unsubscribe();
-    }, [navigate]);
+    }, []);
 
     const value = { user, userProfile, isAdmin, signOut: () => signOut(auth) };
 
