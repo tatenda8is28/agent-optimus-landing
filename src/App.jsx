@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx --- FINAL CORRECT VERSION
 
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -10,60 +10,47 @@ import HowItWorksPage from './HowItWorksPage.jsx';
 import SocialProofPage from './SocialProofPage.jsx';
 import OnboardingWizard from './OnboardingWizard.jsx';
 import LoginPage from './LoginPage.jsx';
-import DashboardPage from './DashboardPage.jsx';
-import ProtectedRoute from './ProtectedRoute.jsx';
 import AdminDashboard from './AdminDashboard.jsx';
+import ProtectedRoute from './ProtectedRoute.jsx';
 import AdminRoute from './AdminRoute.jsx';
 
-// --- NEW REDIRECT CONTROLLER ---
+import DashboardLayout from './DashboardLayout.jsx';
+import LeadsPage from './LeadsPage.jsx';
+
+const BuildAgentPage = () => <div style={{padding: '40px'}}><h1 style={{fontSize: '28px'}}>Build My Agent (Coming Soon)</h1></div>;
+const CompanyInfoPage = () => <div style={{padding: '40px'}}><h1 style={{fontSize: '28px'}}>Company Info (Coming Soon)</h1></div>;
+
 const RedirectController = () => {
   const { user, userProfile, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // Don't do anything until the auth state is fully resolved
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
-    const isAuthPage = location.pathname === '/login' || location.pathname === '/activate';
+    const isAuthPage = location.pathname === '/login';
+    const isAgentDashboard = location.pathname.startsWith('/dashboard');
 
     if (user) {
-      // User is LOGGED IN
       if (!userProfile) {
-        // New user, must complete profile. Redirect to wizard if not already there.
-        if (location.pathname !== '/activate') {
-          navigate('/activate', { replace: true });
-        }
+        if (location.pathname !== '/activate') navigate('/activate', { replace: true });
       } else {
-        // Existing user with a profile.
         if (isAdmin) {
-          // Admin user. Redirect to admin page if not already there.
-          if (location.pathname !== '/admin') {
-            navigate('/admin', { replace: true });
-          }
+          if (location.pathname !== '/admin') navigate('/admin', { replace: true });
         } else {
-          // Regular agent. Redirect to dashboard if they are on an auth page.
-          if (isAuthPage) {
-            navigate('/dashboard', { replace: true });
-          }
+           if (isAuthPage) navigate('/dashboard', { replace: true });
         }
       }
     } else {
-      // User is LOGGED OUT.
-      // If they try to access a protected page, send them to login.
-      const protectedPages = ['/dashboard', '/admin', '/activate'];
-      if (protectedPages.includes(location.pathname)) {
+      const protectedPages = ['/dashboard', '/admin', '/activate', '/build', '/company-info'];
+      if (protectedPages.some(page => location.pathname.startsWith(page))) {
         navigate('/login', { replace: true });
       }
     }
-
   }, [user, userProfile, isAdmin, loading, navigate, location]);
 
-  return null; // This component renders nothing.
+  return null;
 };
-
 
 function App() {
   return (
@@ -79,7 +66,13 @@ function App() {
         <Route path="/activate" element={<OnboardingWizard />} />
         <Route path="/login" element={<LoginPage />} />
 
-        <Route path="/dashboard" element={ <ProtectedRoute> <DashboardPage /> </ProtectedRoute> } />
+        {/* NOTE: The dashboard path is now the parent */}
+        <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<LeadsPage />} />
+          <Route path="/build" element={<BuildAgentPage />} />
+          <Route path="/company-info" element={<CompanyInfoPage />} />
+        </Route>
+
         <Route path="/admin" element={ <AdminRoute> <AdminDashboard /> </AdminRoute> } />
       </Routes>
     </>

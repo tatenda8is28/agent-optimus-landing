@@ -1,0 +1,106 @@
+/* src/DashboardLayout.css */
+
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--bg-light);
+}
+
+.sidebar {
+    width: 260px;
+    background-color: var(--bg-white);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    margin-bottom: 32px;
+}
+
+.sidebar-logo {
+    height: 48px;
+    width: auto;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1;
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    color: var(--ink-light);
+    transition: all 0.2s ease;
+}
+
+.sidebar-nav a:hover {
+    background-color: var(--bg-light);
+    color: var(--ink);
+}
+
+.sidebar-nav a.active {
+    background-color: var(--green-light);
+    color: var(--green-dark);
+    font-weight: 600;
+}
+
+.sidebar-footer {
+    border-top: 1px solid var(--border-color);
+    padding-top: 24px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    color: var(--ink);
+}
+
+.user-email {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.logout-button {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--ink-light);
+}
+.logout-button:hover {
+    background-color: var(--bg-light);
+    color: var(--ink);
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+/* Basic mobile responsiveness */
+@media (max-width: 768px) {
+    .sidebar {
+        /* In a real app, you'd hide this and use a hamburger menu */
+        display: none; 
+    }
+}

@@ -1,0 +1,76 @@
+/* src/LeadsPage.css */
+.page-title-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.page-title-header h1 {
+    font-size: 28px;
+    margin: 0;
+    color: var(--ink);
+}
+
+.kanban-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    width: 100%;
+}
+
+.kanban-column {
+    background-color: transparent;
+    border-radius: 12px;
+}
+
+.kanban-column-title {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0 8px 16px;
+    border-bottom: 2px solid var(--border-color);
+    margin: 0 0 16px;
+}
+.kanban-column-title span {
+    color: var(--ink-light);
+    font-weight: 500;
+}
+
+.kanban-column-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.lead-card {
+    background-color: var(--bg-white);
+    border: 1px solid var(--border-color);
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    cursor: grab;
+}
+.lead-card:hover {
+    border-color: var(--green);
+}
+
+.lead-name {
+    margin: 0 0 4px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.lead-property {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink-light);
+}
+
+.lead-card-placeholder {
+    padding: 24px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--ink-light);
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+}
