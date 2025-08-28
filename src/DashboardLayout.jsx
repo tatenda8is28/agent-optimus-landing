@@ -14,12 +14,11 @@ const LeadsIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20
 const BuildIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M10.362 1.096a.75.75 0 00-.724 0L1.692 5.042a.75.75 0 00-.692.73V13.5a.75.75 0 00.308.612l8.5 5.25a.75.75 0 00.784 0l8.5-5.25a.75.75 0 00.308-.612V5.772a.75.75 0 00-.692-.73L10.362 1.096zM14 5.37l-3.25 2.006v4.94l3.25-2.005V5.37zm-4.5 6.946V7.376L6 5.37v4.94l3.5 2.156zM2.5 6.5l3-1.85V9.4l-3 1.85V6.5zm12 4.75l-3 1.85V9.4l3-1.85v4.75z" /></svg>);
 const SettingsIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fillRule="evenodd" d="M11.078 2.25c-.217 0-.424.04-.622.116A10.009 10.009 0 002.25 11.078c.076.198.116.405.116.622s-.04.424-.116.622a10.009 10.009 0 008.196 8.196c.198.076.405.116.622.116s.424-.04.622-.116a10.009 10.009 0 008.196-8.196c.076-.198.116-.405.116-.622s-.04-.424-.116-.622A10.009 10.009 0 0011.7 2.366c-.198-.076-.405-.116-.622-.116zM10 6a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd" /></svg>);
 const AccountIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.995 9.995 0 0010 12c-2.31 0-4.438.784-6.131 2.095z" /></svg>);
-const HamburgerIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="24" height="24"><path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm0 5.25a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" /></svg>);
-
+const HamburgerIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="24" height="24"><path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm0 5.25a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 01-.75-.75z" clipRule="evenodd" /></svg>);
 
 export default function DashboardLayout() {
     const { user, signOut } = useAuth();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // <-- State for mobile nav
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const onLogout = () => {
         if (window.confirm("Are you sure you want to log out?")) {
@@ -27,20 +26,28 @@ export default function DashboardLayout() {
         }
     };
 
+    // --- NEW: Function to close sidebar after clicking a link ---
+    const handleNavLinkClick = () => {
+        setIsSidebarOpen(false);
+    };
+
     return (
         <div className="dashboard-container">
+            {/* --- NEW: Overlay for closing sidebar on mobile --- */}
+            {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+            
             <aside className={`sidebar ${isSidebarOpen ? 'is-open' : ''}`}>
                 <div className="sidebar-header">
-                    <Link to="/dashboard"><img src={logo} alt="Agent Optimus" className="sidebar-logo" /></Link>
+                    <Link to="/dashboard" onClick={handleNavLinkClick}><img src={logo} alt="Agent Optimus" className="sidebar-logo" /></Link>
                 </div>
                 <nav className="sidebar-nav">
-                    <NavLink to="/dashboard" end><OverviewIcon /> Overview</NavLink>
-                    <NavLink to="/leads"><LeadsIcon /> Leads</NavLink>
-                    <NavLink to="/analytics"><AnalyticsIcon /> Analytics</NavLink>
+                    <NavLink to="/dashboard" end onClick={handleNavLinkClick}><OverviewIcon /> Overview</NavLink>
+                    <NavLink to="/leads" onClick={handleNavLinkClick}><LeadsIcon /> Leads</NavLink>
+                    <NavLink to="/analytics" onClick={handleNavLinkClick}><AnalyticsIcon /> Analytics</NavLink>
                     <hr className="nav-divider" />
-                    <NavLink to="/build"><BuildIcon /> Build My Agent</NavLink>
-                    <NavLink to="/company-info"><SettingsIcon /> Company Info</NavLink>
-                    <NavLink to="/account"><AccountIcon /> Account</NavLink>
+                    <NavLink to="/build" onClick={handleNavLinkClick}><BuildIcon /> Build My Agent</NavLink>
+                    <NavLink to="/company-info" onClick={handleNavLinkClick}><SettingsIcon /> Company Info</NavLink>
+                    <NavLink to="/account" onClick={handleNavLinkClick}><AccountIcon /> Account</NavLink>
                 </nav>
                 <div className="sidebar-footer">
                     <div className="user-profile">
@@ -50,11 +57,14 @@ export default function DashboardLayout() {
                 </div>
             </aside>
             <div className="main-content-wrapper">
-                <header className="mobile-header">
+                <header className="main-header">
+                    {/* --- NEW: Moved Hamburger to the Main Header --- */}
                     <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                         <HamburgerIcon />
                     </button>
-                    <img src={logo} alt="Agent Optimus" className="mobile-logo" />
+                    <div className="header-content-desktop">
+                        {/* This is where a page title could go on desktop if needed */}
+                    </div>
                 </header>
                 <main className="main-content">
                     <Outlet />
