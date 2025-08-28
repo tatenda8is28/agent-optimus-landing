@@ -2,7 +2,7 @@
 
 import { createContext, useState, useEffect, useContext } from 'react';
 import { auth, db } from './firebaseClient';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const AuthContext = createContext();
@@ -12,35 +12,22 @@ export function AuthProvider({ children }) {
     const [userProfile, setUserProfile] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [isNewUser, setIsNewUser] = useState(false); // <-- NEW state for new users
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
-            setIsNewUser(false); // Reset on every auth change
-
             if (user) {
                 const userDocRef = doc(db, 'users', user.uid);
-                // Use getDoc for a one-time fetch to check for existence
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists()) {
-                    // This is an existing user with a profile.
-                    // Now, we can set up a real-time listener.
-                    const unsubProfile = onSnapshot(userDocRef, (docSnap) => {
-                        const profileData = docSnap.data();
+                const unsubProfile = onSnapshot(userDocRef, (doc) => {
+                    if (doc.exists()) {
+                        const profileData = doc.data();
                         setUserProfile(profileData);
                         setIsAdmin(profileData.role === 'admin');
-                        setLoading(false);
-                    });
-                    // We need a way to return this cleanup, but for now this is simpler.
-                } else {
-                    // THIS IS A BRAND NEW USER
-                    setIsNewUser(true);
+                    }
                     setLoading(false);
-                }
+                });
+                return () => unsubProfile();
             } else {
-                // No user is logged in
                 setUserProfile(null);
                 setIsAdmin(false);
                 setLoading(false);
@@ -49,11 +36,7 @@ export function AuthProvider({ children }) {
         return () => unsubscribe();
     }, []);
 
-    const value = { user, userProfile, isAdmin, isNewUser, signOut: () => signOut(auth) };
-
-    if (loading) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading Application...</div>;
-    }
+    const value = { user, userProfile, isAdmin, loading, signOut: () => signOut(auth) };
 
     return (
         <AuthContext.Provider value={value}>
