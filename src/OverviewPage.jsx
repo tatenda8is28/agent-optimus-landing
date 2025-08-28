@@ -1,7 +1,7 @@
 // src/OverviewPage.jsx
 
 import MetricCard from './MetricCard.jsx';
-import './OverviewPage.css'; // We will create this next
+import './OverviewPage.css';
 
 const SetupGuideItem = ({ text, status, linkTo }) => {
     const getIcon = () => {
@@ -18,16 +18,12 @@ const SetupGuideItem = ({ text, status, linkTo }) => {
 };
 
 export default function OverviewPage() {
-    // This will be dynamic later
     const isSetupComplete = false;
 
+    // The header is now removed from here and handled by the layout
     return (
         <div>
-            <div className="page-title-header">
-                <h1>Overview</h1>
-            </div>
-
-            {/* --- NEW SETUP GUIDE --- */}
+            {/* The Setup Guide is now the first thing */}
             {!isSetupComplete && (
                 <div className="setup-guide-container">
                     <div className="setup-guide-header">
