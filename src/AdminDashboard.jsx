@@ -3,11 +3,12 @@
 import { useAuth } from './AuthContext';
 import { Link } from 'react-router-dom';
 import logo from './assets/logo.png';
-import { db } from './firebaseClient';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, functions } from './firebaseClient'; // <-- IMPORT functions from our client
+import { httpsCallable } from 'firebase/functions';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
+// Styling objects... (no change)
 const tableStyle = { width: '100%', borderCollapse: 'collapse', marginTop: '24px' };
 const thStyle = { borderBottom: '2px solid #e2e8f0', padding: '12px', textAlign: 'left', color: '#475569' };
 const tdStyle = { borderBottom: '1px solid #e2e8f0', padding: '12px' };
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
     const [error, setError] = useState(null);
     const [isActivating, setIsActivating] = useState(null);
 
+    // Data fetching useEffect... (no change)
     useEffect(() => {
         const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
         const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
@@ -42,26 +44,22 @@ export default function AdminDashboard() {
     }, []);
 
     const handleActivate = async (userIdToActivate) => {
-        // --- ROBUSTNESS CHECK ---
         if (!userIdToActivate) {
-            alert("Error: No User ID provided. Cannot activate.");
+            alert("Error: No User ID provided.");
             return;
         }
-
         if (!window.confirm(`Are you sure you want to activate user with ID: ${userIdToActivate}?`)) {
             return;
         }
-        
         setIsActivating(userIdToActivate);
         
         try {
-            const functions = getFunctions();
+            // --- THIS IS THE CRUCIAL FIX ---
+            // We now use the 'functions' instance we initialized in firebaseClient.js
             const activateUserTrial = httpsCallable(functions, 'activateUserTrial');
             
             console.log(`Calling function 'activateUserTrial' for userId: ${userIdToActivate}`);
-            
             const result = await activateUserTrial({ userId: userIdToActivate });
-            
             console.log('Function result:', result.data.message);
         } catch (error) {
             console.error('Error calling activate function:', error);
