@@ -1,7 +1,7 @@
 // src/AuthContext.jsx
 
 import { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // <-- ADD useLocation
+import { useNavigate } from 'react-router-dom';
 import { auth, db } from './firebaseClient';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
@@ -14,30 +14,12 @@ export function AuthProvider({ children }) {
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
-    const location = useLocation(); // <-- GET THE CURRENT LOCATION
 
     useEffect(() => {
-        // --- THIS IS THE CORRECTED MAGIC LINK LOGIC ---
-        if (isSignInWithEmailLink(auth, window.location.href)) {
-            let email = window.localStorage.getItem('emailForSignIn');
-            if (!email) {
-                email = window.prompt('Please provide your email for confirmation');
-            }
-
-            signInWithEmailLink(auth, email, window.location.href)
-                .catch((error) => console.error("Error signing in with email link", error))
-                .finally(() => {
-                    // ** CRITICAL **
-                    // Do NOT redirect here. Let the onAuthStateChanged listener handle it.
-                    // Just clean the URL to prevent the loop.
-                    navigate(location.pathname, { replace: true });
-                    window.localStorage.removeItem('emailForSignIn');
-                });
-        }
-
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             if (user) {
+                // We have a logged-in user, now listen to their profile document.
                 const userDocRef = doc(db, 'users', user.uid);
                 const unsubProfile = onSnapshot(userDocRef, (doc) => {
                     if (doc.exists()) {
@@ -46,10 +28,13 @@ export function AuthProvider({ children }) {
                         const isAdminUser = profileData.role === 'admin';
                         setIsAdmin(isAdminUser);
 
-                        // --- THE INTELLIGENT REDIRECT LOGIC ---
-                        // This runs only when we first detect the user's profile.
-                        // We check if the user is on the login page, which means they just logged in.
-                        if (location.pathname === '/login') {
+                        // --- NEW SIMPLIFIED REDIRECT LOGIC ---
+                        // If this is the first time we're loading the profile after a sign-in,
+                        // perform the one-time redirect.
+                        if (isSignInWithEmailLink(auth, window.location.href)) {
+                            // Clean the URL to prevent loops
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            
                             if (isAdminUser) {
                                 navigate('/admin', { replace: true });
                             } else {
@@ -68,7 +53,7 @@ export function AuthProvider({ children }) {
         });
 
         return () => unsubscribe();
-    }, [navigate, location]); // <-- ADD location to dependency array
+    }, [navigate]);
 
     const value = {
         user,
