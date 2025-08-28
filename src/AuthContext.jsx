@@ -1,10 +1,10 @@
-// src/Auth-Context.jsx
+// src/AuthContext.jsx
 
 import { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from './firebaseClient';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -15,63 +15,37 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // --- NEW, SIMPLIFIED useEffect for handling the entire auth flow ---
     useEffect(() => {
-        // First, handle the magic link sign-in if the URL contains the link
-        if (isSignInWithEmailLink(auth, window.location.href)) {
-            let email = window.localStorage.getItem('emailForSignIn');
-            if (!email) {
-                email = window.prompt('Please provide your email for confirmation');
-            }
-            
-            // This is an async process, so we don't want to do anything else until it's done.
-            // The onAuthStateChanged listener below will handle the result.
-            signInWithEmailLink(auth, email, window.location.href)
-                .then(() => {
-                    // Clean up after sign-in
-                    window.localStorage.removeItem('emailForSignIn');
-                    // Clean the URL, but let the listener handle the redirect
-                    window.history.replaceState({}, document.title, "/"); 
-                })
-                .catch((error) => {
-                    console.error("Magic link sign-in error", error);
-                    setLoading(false); // Stop loading on error
-                });
-        }
-
-        // This is the primary listener for all auth changes (login, logout, token refresh)
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setUser(user);
             if (user) {
-                // If a user is logged in, listen for their profile data
                 const userDocRef = doc(db, 'users', user.uid);
-                const unsubProfile = onSnapshot(userDocRef, (doc) => {
-                    if (doc.exists()) {
-                        const profileData = doc.data();
-                        setUserProfile(profileData);
-                        const isAdminUser = profileData.role === 'admin';
-                        setIsAdmin(isAdminUser);
+                const userDoc = await getDoc(userDocRef);
 
-                        // --- THE ONLY REDIRECT LOGIC ---
-                        // Once we have the profile and know their role, redirect them.
-                        if (isAdminUser) {
-                            navigate('/admin', { replace: true });
-                        } else {
-                            navigate('/dashboard', { replace: true });
-                        }
+                if (userDoc.exists()) {
+                    // This is an existing user.
+                    const profileData = userDoc.data();
+                    setUserProfile(profileData);
+                    const isAdminUser = profileData.role === 'admin';
+                    setIsAdmin(isAdminUser);
+
+                    // Redirect based on role
+                    if (isAdminUser) {
+                        navigate('/admin', { replace: true });
                     } else {
-                        // User exists in Auth, but not in Firestore. Log them out.
-                        signOut(auth); 
+                        navigate('/dashboard', { replace: true });
                     }
-                    setLoading(false);
-                });
-                return () => unsubProfile();
+                } else {
+                    // This is a brand new user signing in for the first time.
+                    // Send them to the wizard to complete their profile.
+                    navigate('/activate', { replace: true });
+                }
             } else {
                 // No user is logged in
                 setUserProfile(null);
                 setIsAdmin(false);
-                setLoading(false);
             }
+            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -79,15 +53,9 @@ export function AuthProvider({ children }) {
 
     const value = { user, userProfile, isAdmin, signOut: () => signOut(auth) };
 
-    // We'll show a generic loading screen until the auth state is resolved
-    if (loading && !isSignInWithEmailLink(auth, window.location.href)) {
-         return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading Application...</div>;
+    if (loading) {
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading Application...</div>;
     }
-    // Show a specific message while processing the magic link
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Verifying login...</div>;
-    }
-
 
     return (
         <AuthContext.Provider value={value}>
