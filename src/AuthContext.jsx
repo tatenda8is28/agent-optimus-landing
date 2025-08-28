@@ -8,11 +8,11 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [isAdmin, setIsAdmin] = useState(false); // <-- NEW: State to track admin status
+    const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // ... (Magic link sign-in logic remains the same)
+        // Magic link sign-in logic (no changes here)
         if (isSignInWithEmailLink(auth, window.location.href)) {
             let email = window.localStorage.getItem('emailForSignIn');
             if (!email) {
@@ -26,13 +26,15 @@ export function AuthProvider({ children }) {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setUser(user);
             
-            // --- NEW: Check for admin claim when auth state changes ---
             if (user) {
-                const idTokenResult = await user.getIdTokenResult();
-                // Check if the custom 'admin' claim is true
+                // --- THE CRUCIAL FIX ---
+                // The `true` argument forces a refresh of the token from the server,
+                // ensuring we get the latest custom claims immediately after login.
+                const idTokenResult = await user.getIdTokenResult(true); 
+                
                 setIsAdmin(!!idTokenResult.claims.admin);
+                console.log("Admin claim checked:", idTokenResult.claims.admin); // For debugging
             } else {
-                // If there's no user, they are not an admin
                 setIsAdmin(false);
             }
             
@@ -44,7 +46,7 @@ export function AuthProvider({ children }) {
 
     const value = {
         user,
-        isAdmin, // <-- NEW: Expose admin status to the rest of the app
+        isAdmin,
         signOut: () => signOut(auth),
     };
 
