@@ -9,7 +9,6 @@
 .tab-content-wrapper { background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; }
 .tab-content h2 { font-size: 20px; margin-top: 0; margin-bottom: 8px; }
 .tab-description { color: var(--ink-light); margin-top: 0; margin-bottom: 24px; font-size: 14px; }
-
 .form-card { 
     padding: 24px;
     border: 1px solid var(--border-color);
@@ -19,7 +18,6 @@
 .form-card + .form-card { margin-top: 24px; }
 .form-card h3 { font-size: 16px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;}
 .form-card-subtitle { font-size: 14px; margin-top: -8px; margin-bottom: 16px; color: var(--ink-light); }
-
 .form-card label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
 .form-card input[type="text"], 
 .form-card input[type="email"], 
@@ -36,49 +34,22 @@
 }
 .form-card input:disabled, .form-card textarea:disabled {
     background-color: var(--bg-light);
+    opacity: 0.7;
     cursor: not-allowed;
 }
 
+.question-builder-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.question-builder-item input[type="checkbox"] { margin-top: 10px; height: 18px; width: 18px; flex-shrink: 0; }
+.question-builder-item.compact { align-items: center; }
+.question-builder-item.compact input[type="checkbox"] { margin-top: 0; }
 
-/* --- Question Builder & QA Item --- */
-.question-builder-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-.question-builder-item input[type="checkbox"] {
-    margin-top: 10px;
-    height: 18px;
-    width: 18px;
-}
-.qa-item {
-    position: relative;
-    background-color: #fff;
-}
-.delete-qa-btn {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: var(--bg-light);
-    border: 1px solid var(--border-color);
-    color: var(--ink-light);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 16px;
-}
-.delete-qa-btn:hover {
-    background: var(--red);
-    color: var(--red-dark);
-}
+.qa-item { position: relative; background-color: #fff; }
+.delete-qa-btn { position: absolute; top: 16px; right: 16px; background: var(--bg-light); border: 1px solid var(--border-color); color: var(--ink-light); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; line-height: 1; }
+.delete-qa-btn:hover { background: var(--red); color: var(--red-dark); }
 
-
-/* --- Save Message --- */
+.personality-slider { width: 100%; }
+.slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-light); }
+.dnc-textarea { min-height: 150px; }
 .save-message { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-weight: 500; }
 .save-message.success { background-color: var(--green-light); color: var(--green-dark); }
 .save-message.error { background-color: var(--red); color: var(--red-dark); }
