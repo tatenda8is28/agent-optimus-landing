@@ -1,4 +1,4 @@
-// src/BuildAgentPage.jsx (FINAL, FULL VERSION - NO TINYMCE)
+// src/BuildAgentPage.jsx (FINAL, FULL VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -14,7 +14,7 @@ const AccordionSection = ({ title, children, isOpen, onClick }) => ( <div classN
 export default function BuildAgentPage() {
     const { user, userProfile } = useAuth();
     const [activeTab, setActiveTab] = useState('playbook');
-    const [openAccordion, setOpenAccordion] = useState(null);
+    const [openAccordion, setOpenAccordion] = useState('greeting');
     const [playbook, setPlaybook] = useState(defaultPlaybook);
     const [knowledgeBase, setKnowledgeBase] = useState(defaultKnowledgeBase);
     const [personality, setPersonality] = useState(defaultPersonality);
@@ -69,25 +69,95 @@ export default function BuildAgentPage() {
             </div>
             <p className="page-subtitle">This is your AI Studio. Customize your agent's knowledge, sales script, and personality to perfectly match your brand.</p>
             {saveMessage && <div className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>{saveMessage}</div>}
+            
             <div className="build-agent-tabs">
                 <button onClick={() => setActiveTab('playbook')} className={activeTab === 'playbook' ? 'active' : ''}>Sales Playbook</button>
                 <button onClick={() => setActiveTab('knowledge')} className={activeTab === 'knowledge' ? 'active' : ''}>Knowledge Base</button>
                 <button onClick={() => setActiveTab('personality')} className={activeTab === 'personality' ? 'active' : ''}>Personality</button>
                 <button onClick={() => setActiveTab('dnc')} className={activeTab === 'dnc' ? 'active' : ''}>Do Not Contact</button>
             </div>
+
             <div className="tab-content-wrapper">
-                {activeTab === 'playbook' && ( /* Playbook JSX */ <div>...</div> )}
+                {activeTab === 'playbook' && (
+                    <div className="tab-content">
+                        <AccordionSection title="Step 1: The Initial Greeting & Hook" isOpen={openAccordion === 'greeting'} onClick={() => setOpenAccordion(openAccordion === 'greeting' ? null : 'greeting')}>
+                           <div className="accordion-content">
+                                <label>If a lead is interested (e.g., clicks "Yes"):</label>
+                                <textarea name="greeting_yes" value={playbook.greeting_yes} onChange={handlePlaybookChange} rows="3"></textarea>
+                                <label style={{marginTop: '16px'}}>If a lead is not interested (e.g., clicks "No"):</label>
+                                <textarea name="greeting_no" value={playbook.greeting_no} onChange={handlePlaybookChange} rows="2"></textarea>
+                            </div>
+                        </AccordionSection>
+                        <AccordionSection title="Step 2: The Booking & Confirmation Flow" isOpen={openAccordion === 'booking'} onClick={() => setOpenAccordion(openAccordion === 'booking' ? null : 'booking')}>
+                            <div className="accordion-content">
+                                <div className="booking-style-selector">
+                                    <div className={`booking-option ${playbook.booking_style === 'MANUAL' ? 'selected' : ''}`} onClick={() => setPlaybook({...playbook, booking_style: 'MANUAL'})}>
+                                        <h4>Manual Confirmation</h4>
+                                        <p>AI captures preferred time, you contact the seller to finalize.</p>
+                                    </div>
+                                    <div className={`booking-option ${playbook.booking_style === 'AUTOMATED' ? 'selected' : ''}`}>
+                                        <h4>Automated Booking</h4>
+                                        <p>AI books directly into your calendar. (Coming Soon)</p>
+                                    </div>
+                                </div>
+                                <div style={{marginTop: '24px', opacity: playbook.booking_style === 'MANUAL' ? 1 : 0.5}}>
+                                    <label>Initial request for availability:</label>
+                                    <textarea name="booking_manual_prompt" value={playbook.booking_manual_prompt} onChange={handlePlaybookChange} rows="2" disabled={playbook.booking_style !== 'MANUAL'}></textarea>
+                                    <label style={{marginTop: '16px'}}>Final handoff message:</label>
+                                    <textarea name="booking_manual_confirm" value={playbook.booking_manual_confirm} onChange={handlePlaybookChange} rows="3" disabled={playbook.booking_style !== 'MANUAL'}></textarea>
+                                </div>
+                            </div>
+                        </AccordionSection>
+                        <AccordionSection title="Step 3: The Qualification Funnel" isOpen={openAccordion === 'qualification'} onClick={() => setOpenAccordion(openAccordion === 'qualification' ? null : 'qualification')}>
+                             <div className="accordion-content">
+                                {playbook.qualification_steps.map((step, index) => (
+                                    <div key={step.id} className="question-builder-item">
+                                        <input type="checkbox" checked={step.enabled} name="qualification_enabled" onChange={(e) => handlePlaybookChange(e, index)} />
+                                        <textarea value={step.question} name="qualification_question" onChange={(e) => handlePlaybookChange(e, index)} rows={2} disabled={!step.enabled}></textarea>
+                                    </div>
+                                ))}
+                            </div>
+                        </AccordionSection>
+                        <AccordionSection title="Step 5: Further Instructions for Your AI" isOpen={openAccordion === 'instructions'} onClick={() => setOpenAccordion(openAccordion === 'instructions' ? null : 'instructions')}>
+                           <div className="accordion-content">
+                                <label>Provide any additional, high-level instructions to guide its behavior.</label>
+                                <textarea name="further_instructions" value={playbook.further_instructions} onChange={handlePlaybookChange} rows="4"></textarea>
+                            </div>
+                        </AccordionSection>
+                    </div>
+                )}
                 {activeTab === 'knowledge' && (
                     <div className="tab-content">
                         <h2>The Brain: Your Agent's Knowledge</h2>
-                        <p className="tab-description">This is your live knowledge document. Edit the text below to teach your agent how to answer common questions.</p>
                         <div className="knowledge-editor">
                            <textarea value={knowledgeBase} onChange={(e) => setKnowledgeBase(e.target.value)} rows="20"></textarea>
                         </div>
                     </div>
                 )}
-                {activeTab === 'personality' && ( /* Personality JSX */ <div>...</div> )}
-                {activeTab === 'dnc' && ( /* DNC JSX */ <div>...</div> )}
+                {activeTab === 'personality' && (
+                     <div className="tab-content">
+                        <h2>The Vibe: Define your agent's personality</h2>
+                         <div className="form-card">
+                            <label>Professionalism</label>
+                            <input type="range" name="professionalism" min="0" max="1" step="0.1" value={personality.professionalism} onChange={handlePersonalityChange} className="personality-slider" />
+                            <div className="slider-labels"><span>Casual & Friendly</span><span>Formal & Direct</span></div>
+                         </div>
+                         <div className="form-card">
+                            <label>Enthusiasm</label>
+                            <input type="range" name="enthusiasm" min="0" max="1" step="0.1" value={personality.enthusiasm} onChange={handlePersonalityChange} className="personality-slider" />
+                            <div className="slider-labels"><span>Calm & Concise</span><span>Eager & Expressive</span></div>
+                         </div>
+                    </div>
+                )}
+                {activeTab === 'dnc' && (
+                    <div className="tab-content">
+                        <h2>Do Not Contact List</h2>
+                         <div className="form-card">
+                            <label htmlFor="dnc-list">Enter one WhatsApp number per line</label>
+                            <textarea id="dnc-list" className="dnc-textarea" value={dncList} onChange={(e) => setDncList(e.target.value)} placeholder="e.g. +27821234567&#10;+27831234568" rows="10"></textarea>
+                         </div>
+                    </div>
+                )}
             </div>
         </div>
     );
