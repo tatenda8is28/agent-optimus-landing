@@ -8,7 +8,8 @@
 .build-agent-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
 .tab-content-wrapper { background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; }
 .tab-content h2 { font-size: 20px; margin-top: 0; margin-bottom: 8px; }
-.tab-description { color: var(--ink-light); margin-top: 0; margin-bottom: 24px; font-size: 14px; }
+.tab-content h3 { font-size: 16px; margin-top: 0; margin-bottom: 24px; color: var(--ink); }
+
 .form-card { 
     padding: 24px;
     border: 1px solid var(--border-color);
@@ -16,12 +17,7 @@
     border-radius: 12px;
 }
 .form-card + .form-card { margin-top: 24px; }
-.form-card h3 { font-size: 16px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;}
-.form-card-subtitle { font-size: 14px; margin-top: -8px; margin-bottom: 16px; color: var(--ink-light); }
 .form-card label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
-.form-card input[type="text"], 
-.form-card input[type="email"], 
-.form-card input[type="url"],
 .form-card textarea { 
     width: 100%; 
     padding: 10px 12px; 
@@ -31,25 +27,58 @@
     font-size: 14px; 
     font-family: var(--font-main); 
     resize: vertical; 
+    min-height: 60px;
 }
-.form-card input:disabled, .form-card textarea:disabled {
-    background-color: var(--bg-light);
-    opacity: 0.7;
-    cursor: not-allowed;
+.form-card input[type="text"], .form-card input[type="email"] {
+    width: 100%; 
+    padding: 10px 12px; 
+    border: 1px solid var(--border-color); 
+    background-color: var(--bg-white);
+    border-radius: 8px; 
+    font-size: 14px; 
 }
+.form-card input:disabled, .form-card textarea:disabled { background-color: var(--bg-light); opacity: 0.7; cursor: not-allowed; }
+
+/* --- Specific Component Styles --- */
+.booking-style-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.booking-option {
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.booking-option:hover {
+    border-color: var(--green);
+}
+.booking-option.selected {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-light);
+}
+.booking-option h4 { margin: 0 0 4px; color: var(--ink); }
+.booking-option p { margin: 0; font-size: 12px; color: var(--ink-light); }
+.booking-option.selected h4 { color: var(--green-dark); }
 
 .question-builder-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
 .question-builder-item input[type="checkbox"] { margin-top: 10px; height: 18px; width: 18px; flex-shrink: 0; }
 .question-builder-item.compact { align-items: center; }
 .question-builder-item.compact input[type="checkbox"] { margin-top: 0; }
 
-.qa-item { position: relative; background-color: #fff; }
-.delete-qa-btn { position: absolute; top: 16px; right: 16px; background: var(--bg-light); border: 1px solid var(--border-color); color: var(--ink-light); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; line-height: 1; }
-.delete-qa-btn:hover { background: var(--red); color: var(--red-dark); }
+.knowledge-editor textarea {
+    width: 100%;
+    min-height: 400px;
+    border: 1px solid var(--border-color);
+    padding: 24px;
+    border-radius: 8px;
+    font-family: var(--font-main);
+    font-size: 16px;
+    line-height: 1.6;
+}
 
-.personality-slider { width: 100%; }
-.slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-light); }
-.dnc-textarea { min-height: 150px; }
 .save-message { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-weight: 500; }
 .save-message.success { background-color: var(--green-light); color: var(--green-dark); }
 .save-message.error { background-color: var(--red); color: var(--red-dark); }
