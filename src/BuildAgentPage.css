@@ -1,118 +1,23 @@
 /* src/BuildAgentPage.css */
 
-.page-title-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px; /* Reduced margin */
-}
-
-.page-title-header h1 {
-    font-size: 28px;
-    margin: 0;
-    color: var(--ink);
-}
-
-.page-subtitle { 
-    color: var(--ink-light); 
-    margin-top: 0; 
-    margin-bottom: 32px; 
-    max-width: 600px;
-}
-
-.build-agent-tabs { 
-    display: flex; 
-    gap: 8px; 
-    border-bottom: 1px solid var(--border-color); 
-    margin-bottom: 32px; 
-}
-
-.build-agent-tabs button { 
-    background: none; 
-    border: none; 
-    padding: 12px 20px; 
-    font-weight: 600; 
-    cursor: pointer; 
-    color: var(--ink-light); 
-    border-bottom: 2px solid transparent; 
-    margin-bottom: -1px; /* Aligns border with the main border */
-}
-
-.build-agent-tabs button.active { 
-    color: var(--green); 
-    border-bottom-color: var(--green); 
-}
-
-.tab-content-wrapper {
-    background-color: var(--bg-white);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 32px;
-}
-
-.tab-content h2 { 
-    font-size: 20px; 
-    margin-top: 0;
-    margin-bottom: 8px; 
-}
-.tab-description {
-    color: var(--ink-light);
-    margin-top: 0;
-    margin-bottom: 24px;
-    font-size: 14px;
-}
-
-.form-card { 
-    padding: 0; /* Remove padding from here */
-    border: none; /* Remove border from here */
-    background-color: transparent; /* Remove background */
-}
-
-.form-card + .form-card {
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border-color);
-}
-
-
-.form-card label { 
-    display: block; 
-    font-weight: 600; 
-    margin-bottom: 8px; 
-}
-
+.page-title-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.page-title-header h1 { font-size: 28px; margin: 0; color: var(--ink); }
+.page-subtitle { color: var(--ink-light); margin-top: 0; margin-bottom: 32px; max-width: 600px; }
+.build-agent-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 32px; flex-wrap: wrap; }
+.build-agent-tabs button { background: none; border: none; padding: 12px 20px; font-weight: 600; cursor: pointer; color: var(--ink-light); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.build-agent-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-content-wrapper { background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; }
+.tab-content h2 { font-size: 20px; margin-top: 0; margin-bottom: 24px; }
+.form-card { padding: 0; border: none; background-color: transparent; }
+.form-card + .form-card { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color); }
+.form-card label { display: block; font-weight: 600; margin-bottom: 8px; }
 .form-card input[type="text"], 
 .form-card input[type="url"],
-.dnc-textarea { 
-    width: 100%; 
-    padding: 12px; 
-    border: 1px solid var(--border-color); 
-    border-radius: 8px; 
-    font-size: 14px;
-    font-family: var(--font-main);
-}
-
-.file-drop-zone { 
-    border: 2px dashed var(--border-color); 
-    border-radius: 8px; 
-    padding: 40px; 
-    text-align: center; 
-    color: var(--ink-light); 
-    background-color: var(--bg-light); 
-}
-
-.personality-slider { 
-    width: 100%; 
-}
-
-.slider-labels { 
-    display: flex; 
-    justify-content: space-between; 
-    font-size: 12px; 
-    color: var(--ink-light); 
-}
-
-.dnc-textarea {
-    resize: vertical;
-    min-height: 150px;
-}
+.form-card textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; font-family: var(--font-main); resize: vertical; }
+.file-drop-zone { border: 2px dashed var(--border-color); border-radius: 8px; padding: 40px; text-align: center; color: var(--ink-light); background-color: var(--bg-light); cursor: not-allowed; }
+.personality-slider { width: 100%; }
+.slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-light); }
+.dnc-textarea { min-height: 150px; }
+.save-message { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-weight: 500; }
+.save-message.success { background-color: var(--green-light); color: var(--green-dark); }
+.save-message.error { background-color: var(--red); color: var(--red-dark); }
