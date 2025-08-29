@@ -10,19 +10,24 @@ export default function CompanyInfoPage() {
     const [formData, setFormData] = useState({
         companyName: '',
         serviceArea: '',
-        databaseLink: ''
+        whatsappNumber: '', // <-- NEW
+        databaseLink1: '',  // <-- NEW
+        databaseLink2: '',  // <-- NEW
+        databaseLink3: ''   // <-- NEW
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
 
-    // Pre-populate the form with existing user profile data when the component loads
     useEffect(() => {
         if (userProfile) {
             setFormData({
                 companyName: userProfile.companyName || '',
                 serviceArea: userProfile.serviceArea || '',
-                databaseLink: userProfile.databaseLink || ''
+                whatsappNumber: userProfile.whatsappNumber || '', // <-- NEW
+                databaseLink1: userProfile.databaseLink1 || '', // <-- NEW
+                databaseLink2: userProfile.databaseLink2 || '', // <-- NEW
+                databaseLink3: userProfile.databaseLink3 || ''  // <-- NEW
             });
             setIsLoading(false);
         }
@@ -43,14 +48,16 @@ export default function CompanyInfoPage() {
         setSaveMessage('');
 
         try {
-            // Get a reference to the user's document in Firestore
             const userDocRef = doc(db, 'users', user.uid);
             
-            // Update the document with the new form data
+            // Update the document with all the new form data
             await updateDoc(userDocRef, {
                 companyName: formData.companyName,
                 serviceArea: formData.serviceArea,
-                databaseLink: formData.databaseLink
+                whatsappNumber: formData.whatsappNumber, // <-- NEW
+                databaseLink1: formData.databaseLink1, // <-- NEW
+                databaseLink2: formData.databaseLink2, // <-- NEW
+                databaseLink3: formData.databaseLink3  // <-- NEW
             });
 
             setSaveMessage('Changes saved successfully!');
@@ -59,14 +66,12 @@ export default function CompanyInfoPage() {
             setSaveMessage('Error: Could not save changes.');
         } finally {
             setIsSaving(false);
-            // Hide the success message after a few seconds
             setTimeout(() => setSaveMessage(''), 3000);
         }
     };
     
-    // Show a loading state while we wait for the initial user data
     if (isLoading) {
-        return <div>Loading company info...</div>;
+        return <div style={{padding: '40px'}}>Loading company info...</div>;
     }
 
     return (
@@ -81,7 +86,7 @@ export default function CompanyInfoPage() {
                     {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>
-            <p className="page-subtitle">Manage your core business details and connect your property data.</p>
+            <p className="page-subtitle">Manage your core business details and connect your property data sources.</p>
             
             {saveMessage && (
                 <div 
@@ -108,17 +113,30 @@ export default function CompanyInfoPage() {
                     <label htmlFor="serviceArea">Primary Service Area(s)</label>
                     <input type="text" id="serviceArea" name="serviceArea" value={formData.serviceArea} onChange={handleInputChange} placeholder="e.g. Klerksdorp, Flamwood" />
                 </div>
-            </div>
-            <div className="form-card">
-                <h3>Property Database Connection</h3>
+                {/* --- NEW WHATSAPP NUMBER FIELD --- */}
                 <div className="wizard-form-group">
-                    <label htmlFor="databaseLink">Live Sync URL (Property24, etc.)</label>
-                    <input type="url" id="databaseLink" name="databaseLink" value={formData.databaseLink} onChange={handleInputChange} />
+                    <label htmlFor="whatsappNumber">WhatsApp Business Number</label>
+                    <input type="tel" id="whatsappNumber" name="whatsappNumber" value={formData.whatsappNumber} onChange={handleInputChange} placeholder="e.g. +27821234567" />
                 </div>
-                <p style={{textAlign: 'center', margin: '16px 0', color: 'var(--ink-light)'}}>OR</p>
+            </div>
+
+            {/* --- REVISED DATABASE SECTION --- */}
+            <div className="form-card">
+                <h3>Property Database Links</h3>
+                <p style={{color: 'var(--ink-light)', fontSize: '14px', marginTop: '-8px', marginBottom: '16px'}}>
+                    Provide links to your listings on property portals. Your AI will use these as its source of knowledge.
+                </p>
                 <div className="wizard-form-group">
-                    <label>Manual Upload (CSV or Excel) - (Coming Soon)</label>
-                    <div className="file-drop-zone">Upload Property File</div>
+                    <label htmlFor="databaseLink1">Property Portal Link 1 (e.g., Property24)</label>
+                    <input type="url" id="databaseLink1" name="databaseLink1" value={formData.databaseLink1} onChange={handleInputChange} placeholder="https://www.property24.co.za/..." />
+                </div>
+                 <div className="wizard-form-group">
+                    <label htmlFor="databaseLink2">Property Portal Link 2 (e.g., Private Property)</label>
+                    <input type="url" id="databaseLink2" name="databaseLink2" value={formData.databaseLink2} onChange={handleInputChange} placeholder="https://www.privateproperty.co.za/..." />
+                </div>
+                 <div className="wizard-form-group">
+                    <label htmlFor="databaseLink3">Company Website Listings Link</label>
+                    <input type="url" id="databaseLink3" name="databaseLink3" value={formData.databaseLink3} onChange={handleInputChange} placeholder="https://www.your-agency.co.za/listings" />
                 </div>
             </div>
         </div>
