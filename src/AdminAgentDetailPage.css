@@ -1,0 +1,61 @@
+/* src/AdminAgentDetailPage.css */
+
+.back-link {
+    font-weight: 600;
+    color: var(--green);
+    text-decoration: none;
+    margin-bottom: 24px;
+    display: inline-block;
+}
+
+.agent-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.detail-card {
+    background-color: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.detail-card h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+}
+
+.detail-card p {
+    margin: 0 0 8px;
+    font-size: 14px;
+}
+.detail-card p strong {
+    color: var(--ink-light);
+}
+
+.code-block {
+    background-color: var(--bg-light);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.knowledge-display {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .agent-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
