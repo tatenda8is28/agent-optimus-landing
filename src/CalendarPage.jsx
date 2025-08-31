@@ -1,28 +1,13 @@
-// src/CalendarPage.jsx
+// src/CalendarPage.jsx (FINAL, STABLE VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-
-// --- THE CRITICAL FIX IS HERE ---
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import format from 'date-fns/format';
-import parse from 'date-fns/parse';
-import startOfWeek from 'date-fns/startOfWeek';
-import getDay from 'date-fns/getDay';
-import enUS from 'date-fns/locale/en-US'; // <-- CORRECT IMPORT SYNTAX
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-
 import './CalendarPage.css';
-
-// --- UPDATED LOCALIZER SETUP ---
-const locales = { 'en-US': enUS, };
-const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const defaultAvailability = () => ({ monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] });
 
-// ... (The rest of the DaySchedule and CalendarPage component code is correct and does not need to change)
 const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     <div className="day-slot">
         <h3>{day.charAt(0).toUpperCase() + day.slice(1)}</h3>
@@ -46,13 +31,15 @@ export default function CalendarPage() {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('schedule');
     const [availability, setAvailability] = useState(defaultAvailability());
-    const [events, setEvents] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
         const fetchData = async () => {
             setIsLoading(true);
             const docRef = doc(db, 'agent_availability', user.uid);
@@ -148,8 +135,8 @@ export default function CalendarPage() {
                 {activeTab === 'overrides' && (
                     <div className="tab-content">
                         <h2>Bookings Calendar</h2>
-                        <div className="calendar-container">
-                            <Calendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" defaultView="month" style={{ height: 650 }} />
+                        <div className="calendar-placeholder">
+                            <p>Full Monthly Calendar View (Coming Soon)</p>
                         </div>
                     </div>
                 )}
