@@ -1,4 +1,4 @@
-// src/CalendarPage.jsx (FINAL, STABLE VERSION)
+// src/CalendarPage.jsx (FINAL, STABLE VERSION - NO EXTERNAL DEPENDENCIES)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
