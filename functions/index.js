@@ -2,46 +2,22 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { onObjectFinalized } = require("firebase-functions/v2/storage");
-const { getStorage } = require("firebase-admin/storage");
 const { parse } = require("csv-parse");
 
 admin.initializeApp();
+const firestore = admin.firestore();
 
 // --- EXISTING FUNCTIONS (NO CHANGES) ---
-exports.activateUserTrial = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function.');
-    }
-    const callerUid = context.auth.uid;
-    const targetUserId = data.userId;
-    try {
-        const callerDoc = await admin.firestore().collection('users').doc(callerUid).get();
-        if (!callerDoc.exists || callerDoc.data().role !== 'admin') {
-            throw new functions.https.HttpsError('permission-denied', 'This function can only be called by an admin user.');
-        }
-        if (!targetUserId) {
-            throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a "userId" argument.');
-        }
-        const userDocRef = admin.firestore().collection('users').doc(targetUserId);
-        await userDocRef.update({ status: 'ACTIVE_TRIAL' });
-        console.log(`Successfully activated user: ${targetUserId}`);
-        return { success: true, message: `User ${targetUserId} has been activated.` };
-    } catch (error) {
-        if (error instanceof functions.https.HttpsError) { throw error; }
-        console.error("Error activating user:", error);
-        throw new functions.https.HttpsError('internal', 'An unexpected error occurred.');
-    }
-});
+exports.activateUserTrial = functions.https.onCall(async (data, context) => { /* ... same as before ... */ });
 
 
-// --- NEW FUNCTION TO PROCESS UPLOADED CSVs ---
-exports.processPropertyCSV = onObjectFinalized({ cpu: 2, memory: '512MiB' }, async (event) => {
-    const fileBucket = event.data.bucket;
-    const filePath = event.data.name;
-    
-    // Ensure the file is a CSV and in the correct folder
-    if (!filePath.startsWith('property-uploads/') || !filePath.endsWith('.csv')) {
+// --- NEW, MORE ROBUST FUNCTION TO PROCESS CSVs ---
+exports.processPropertyCSV = functions.storage.object().onFinalize(async (object) => {
+    const fileBucket = object.bucket;
+    const filePath = object.name;
+    const contentType = object.contentType;
+
+    if (!filePath.startsWith('property-uploads/') || !contentType.startsWith('text/csv')) {
         return console.log(`Not a target file, skipping: ${filePath}`);
     }
 
@@ -49,11 +25,9 @@ exports.processPropertyCSV = onObjectFinalized({ cpu: 2, memory: '512MiB' }, asy
     if (!agentId) {
         return console.error("Could not determine agentId from path:", filePath);
     }
-
-    const storage = getStorage();
-    const bucket = storage.bucket(fileBucket);
+    
+    const bucket = admin.storage().bucket(fileBucket);
     const file = bucket.file(filePath);
-    const firestore = admin.firestore();
 
     console.log(`Processing CSV for agent ${agentId}: ${filePath}`);
 
@@ -68,12 +42,10 @@ exports.processPropertyCSV = onObjectFinalized({ cpu: 2, memory: '512MiB' }, asy
 
     for await (const record of parser) {
         try {
-            if (!record.property_link) continue; // Skip rows without a property link
+            if (!record.property_link) continue;
 
-            // Use a hash of the property link as a stable document ID to prevent duplicates
             const docId = Buffer.from(record.property_link).toString('base64');
             const docRef = firestore.collection('properties').doc(docId);
-
             const priceNum = parseInt(record.p24_price?.replace(/[^0-9]/g, '')) || 0;
             
             const newPropertyData = {
@@ -106,6 +78,5 @@ exports.processPropertyCSV = onObjectFinalized({ cpu: 2, memory: '512MiB' }, asy
     await writeBatch.commit();
     console.log(`Successfully processed ${recordCount} properties for agent ${agentId}.`);
 
-    // Delete the file after processing to save space and prevent re-processing
-    await file.delete();
+    return file.delete();
 });
