@@ -1,13 +1,14 @@
-// src/CalendarPage.jsx (FINAL, STABLE VERSION - NO EXTERNAL DEPENDENCIES)
+// src/CalendarPage.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import './CalendarPage.css';
 
 const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const defaultAvailability = () => ({ monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] });
 
+// Sub-component for the weekly schedule editor
 const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     <div className="day-slot">
         <h3>{day.charAt(0).toUpperCase() + day.slice(1)}</h3>
@@ -27,10 +28,12 @@ const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     </div>
 );
 
+// Main Page Component
 export default function CalendarPage() {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('schedule');
     const [availability, setAvailability] = useState(defaultAvailability());
+    const [bookings, setBookings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
@@ -40,44 +43,65 @@ export default function CalendarPage() {
             setIsLoading(false);
             return;
         }
+
+        // This is a robust way to handle all data fetching
         const fetchData = async () => {
             setIsLoading(true);
-            const docRef = doc(db, 'agent_availability', user.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const fullData = {};
-                daysOfWeek.forEach(day => {
-                    fullData[day] = data[day] || [];
+            try {
+                // Fetch recurring availability
+                const availabilityRef = doc(db, 'agent_availability', user.uid);
+                const availabilitySnap = await getDoc(availabilityRef);
+                if (availabilitySnap.exists()) {
+                    const data = availabilitySnap.data();
+                    const fullData = {};
+                    daysOfWeek.forEach(day => { fullData[day] = data[day] || []; });
+                    setAvailability(fullData);
+                } else {
+                    setAvailability(defaultAvailability());
+                }
+
+                // Set up a real-time listener for bookings
+                const bookingsQuery = query(collection(db, 'bookings'), where('agentId', '==', user.uid));
+                const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+                    const bookingsData = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        title: doc.data().title,
+                        start: doc.data().start.toDate(), // Convert Firestore Timestamp to JS Date
+                        end: doc.data().end.toDate(),
+                    }));
+                    setBookings(bookingsData);
                 });
-                setAvailability(fullData);
-            } else {
-                setAvailability(defaultAvailability());
+                
+                // Return the listener cleanup function
+                return unsubscribe;
+
+            } catch (error) {
+                console.error("Error fetching calendar data:", error);
+            } finally {
+                setIsLoading(false);
             }
-            setIsLoading(false);
         };
-        fetchData();
+
+        const unsubscribePromise = fetchData();
+
+        // Cleanup the listener when the component unmounts
+        return () => {
+            unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+        };
     }, [user]);
     
-    const handleAddSlot = (day) => {
-        setAvailability(prev => ({ ...prev, [day]: [...(prev[day] || []), { start: '09:00', end: '17:00' }] }));
-    };
-
-    const handleRemoveSlot = (day, index) => {
-        setAvailability(prev => ({ ...prev, [day]: prev[day].filter((_, i) => i !== index) }));
-    };
-
+    // --- All handler functions for the weekly schedule ---
+    const handleAddSlot = (day) => setAvailability(prev => ({ ...prev, [day]: [...(prev[day] || []), { start: '09:00', end: '17:00' }] }));
+    const handleRemoveSlot = (day, index) => setAvailability(prev => ({ ...prev, [day]: prev[day].filter((_, i) => i !== index) }));
     const handleSlotChange = (day, index, field, value) => {
         const updatedSlots = [...availability[day]];
         updatedSlots[index][field] = value;
         setAvailability(prev => ({ ...prev, [day]: updatedSlots }));
     };
-
     const handleApplyToWeekdays = () => {
         const fridaySlots = JSON.parse(JSON.stringify(availability.friday || []));
         setAvailability(prev => ({ ...prev, monday: fridaySlots, tuesday: fridaySlots, wednesday: fridaySlots, thursday: fridaySlots }));
     };
-
     const handleSaveChanges = async () => {
         if (!user) return;
         setIsSaving(true);
@@ -112,7 +136,7 @@ export default function CalendarPage() {
 
             <div className="build-agent-tabs">
                 <button onClick={() => setActiveTab('schedule')} className={activeTab === 'schedule' ? 'active' : ''}>Weekly Schedule</button>
-                <button onClick={() => setActiveTab('overrides')} className={activeTab === 'overrides' ? 'active' : ''}>Bookings Calendar</button>
+                <button onClick={() => setActiveTab('bookings')} className={activeTab === 'bookings' ? 'active' : ''}>Bookings Calendar</button>
             </div>
 
             <div className="tab-content-wrapper">
@@ -132,11 +156,15 @@ export default function CalendarPage() {
                         </div>
                     </div>
                 )}
-                {activeTab === 'overrides' && (
+                {activeTab === 'bookings' && (
                     <div className="tab-content">
                         <h2>Bookings Calendar</h2>
                         <div className="calendar-placeholder">
-                            <p>Full Monthly Calendar View (Coming Soon)</p>
+                            {bookings.length > 0 ? (
+                                <ul>{bookings.map(b => <li key={b.id}>{b.title} @ {b.start.toLocaleString()}</li>)}</ul>
+                            ) : (
+                                <p>No bookings found for this month.</p>
+                            )}
                         </div>
                     </div>
                 )}
