@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db } from './firebaseClient';
 import { doc, getDoc } from 'firebase/firestore';
+import PlaybookDisplay from './PlaybookDisplay.jsx';
 import './AdminAgentDetailPage.css';
 
 export default function AdminAgentDetailPage() {
@@ -20,7 +21,6 @@ export default function AdminAgentDetailPage() {
             setIsLoading(true);
             setError('');
             try {
-                // Fetch data from BOTH collections concurrently
                 const userDocRef = doc(db, 'users', userId);
                 const playbookDocRef = doc(db, 'sales_playbooks', userId);
 
@@ -64,7 +64,7 @@ export default function AdminAgentDetailPage() {
                 <Link to="/admin" className="back-link">← Back to All Users</Link>
             </div>
             
-            <h2>Viewing Configuration for: {agentProfile.email}</h2>
+            <h2 className="agent-detail-title">Viewing Configuration for: <span>{agentProfile.email}</span></h2>
 
             <div className="agent-detail-grid">
                 <div className="detail-card">
@@ -80,7 +80,7 @@ export default function AdminAgentDetailPage() {
                  <div className="detail-card">
                     <h3>Account Status</h3>
                     <p><strong>Full Name:</strong> {agentProfile.fullName || 'N/A'}</p>
-                    <p><strong>Status:</strong> <span className={`status-pill ${agentProfile.status}`}>{agentProfile.status}</span></p>
+                    <p><strong>Status:</strong> <span className={`status-pill status-${agentProfile.status}`}>{agentProfile.status}</span></p>
                     <p><strong>Role:</strong> {agentProfile.role}</p>
                     <p><strong>DNC List:</strong> {agentProfile.doNotContactList?.length || 0} numbers</p>
                     <p><strong>Personality:</strong> Prof: {agentProfile.personality?.professionalism}, Enth: {agentProfile.personality?.enthusiasm}</p>
@@ -89,9 +89,7 @@ export default function AdminAgentDetailPage() {
 
             <div className="detail-card">
                 <h3>Sales Playbook Configuration</h3>
-                <pre className="code-block">
-                    {salesPlaybook ? JSON.stringify(salesPlaybook, null, 2) : "No sales playbook has been configured yet."}
-                </pre>
+                <PlaybookDisplay playbook={salesPlaybook} />
             </div>
 
              <div className="detail-card">

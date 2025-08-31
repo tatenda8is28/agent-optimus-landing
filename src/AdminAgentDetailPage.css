@@ -1,20 +1,27 @@
 /* src/AdminAgentDetailPage.css */
-.admin-detail-page h2 {
+
+.agent-detail-title {
     font-size: 24px;
     color: var(--ink);
     margin-bottom: 24px;
+    font-weight: 600;
 }
+.agent-detail-title span {
+    color: var(--ink-light);
+    font-weight: 400;
+}
+
 .back-link {
     font-weight: 600;
     color: var(--green);
     text-decoration: none;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     display: inline-block;
 }
 
 .agent-detail-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 24px;
     margin-bottom: 24px;
 }
@@ -31,16 +38,19 @@
     margin-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 12px;
+    font-size: 18px;
 }
 
 .detail-card p {
-    margin: 0 0 C;
+    margin: 0 0 10px;
     font-size: 14px;
+    display: flex;
+    justify-content: space-between;
 }
 .detail-card p strong {
     color: var(--ink-light);
-    display: inline-block;
-    width: 120px; /* Aligns the values */
+    flex-shrink: 0;
+    margin-right: 16px;
 }
 .detail-card hr {
     border: none;
@@ -53,6 +63,10 @@
     border-radius: 99px;
     font-size: 12px;
     font-weight: 600;
+    text-align: center;
+    min-width: 80px;
+}
+.status-pill.TRIAL_PENDING_ACTIVATION {
     background-color: #fffbeb;
     color: #b45309;
 }
@@ -84,4 +98,63 @@
     line-height: 1.6;
     background-color: var(--bg-light);
     resize: none;
+}
+.knowledge-display textarea:focus {
+    outline: none;
+}
+
+
+/* --- Styles for PlaybookDisplay Component --- */
+.playbook-display {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.playbook-section {
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+.playbook-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.playbook-section h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.playbook-item {
+    font-size: 14px;
+}
+.playbook-item + .playbook-item {
+    margin-top: 16px;
+}
+
+.playbook-item strong {
+    color: var(--ink-light);
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.playbook-item p {
+    margin: 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--green-light);
+    color: var(--ink);
+    display: block; /* Override default p styles */
+    text-align: left;
+}
+
+.playbook-item code {
+    font-family: monospace;
+    background-color: var(--bg-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--green-dark);
 }
