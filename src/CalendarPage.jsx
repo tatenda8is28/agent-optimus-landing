@@ -3,11 +3,23 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import format from 'date-fns/format';
+import parse from 'date-fns/parse';
+import startOfWeek from 'date-fns/startOfWeek';
+import getDay from 'date-fns/getDay';
+import enUS from 'date-fns/locale/en-US';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
 import './CalendarPage.css';
 
-const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const locales = { 'en-US': enUS };
+const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
-// A reusable component for a single day's schedule
+const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const defaultAvailability = () => ({ monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] });
+
 const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     <div className="day-slot">
         <h3>{day.charAt(0).toUpperCase() + day.slice(1)}</h3>
@@ -18,25 +30,20 @@ const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
                         <input type="time" value={slot.start} onChange={(e) => onSlotChange(index, 'start', e.target.value)} />
                         <span>-</span>
                         <input type="time" value={slot.end} onChange={(e) => onSlotChange(index, 'end', e.target.value)} />
-                        <button onClick={() => onRemoveSlot(index)} className="remove-slot-btn">&times;</button>
+                        <button onClick={() => onRemoveSlot(index)} className="remove-slot-btn" title="Remove slot">&times;</button>
                     </div>
                 ))
-            ) : (
-                <p className="no-slots-text">Unavailable</p>
-            )}
+            ) : ( <p className="no-slots-text">Unavailable</p> )}
             <button onClick={onAddSlot} className="add-slot-btn">+ Add Slot</button>
         </div>
     </div>
 );
 
-
 export default function CalendarPage() {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('schedule');
-    const [availability, setAvailability] = useState({
-        monday: [], tuesday: [], wednesday: [], thursday: [], 
-        friday: [], saturday: [], sunday: []
-    });
+    const [availability, setAvailability] = useState(defaultAvailability());
+    const [events, setEvents] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
@@ -48,7 +55,16 @@ export default function CalendarPage() {
             const docRef = doc(db, 'agent_availability', user.uid);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                setAvailability(docSnap.data());
+                // Ensure all days of the week are present
+                const data = docSnap.data();
+                const fullData = {};
+                daysOfWeek.forEach(day => {
+                    fullData[day] = data[day] || [];
+                });
+                setAvailability(fullData);
+            } else {
+                // If no document exists, set to default empty state
+                setAvailability(defaultAvailability());
             }
             setIsLoading(false);
         };
@@ -56,32 +72,22 @@ export default function CalendarPage() {
     }, [user]);
     
     const handleAddSlot = (day) => {
-        const newAvailability = { ...availability };
-        newAvailability[day].push({ start: '09:00', end: '17:00' });
-        setAvailability(newAvailability);
+        setAvailability(prev => ({ ...prev, [day]: [...(prev[day] || []), { start: '09:00', end: '17:00' }] }));
     };
 
     const handleRemoveSlot = (day, index) => {
-        const newAvailability = { ...availability };
-        newAvailability[day].splice(index, 1);
-        setAvailability(newAvailability);
+        setAvailability(prev => ({ ...prev, [day]: prev[day].filter((_, i) => i !== index) }));
     };
 
     const handleSlotChange = (day, index, field, value) => {
-        const newAvailability = { ...availability };
-        newAvailability[day][index][field] = value;
-        setAvailability(newAvailability);
+        const updatedSlots = [...availability[day]];
+        updatedSlots[index][field] = value;
+        setAvailability(prev => ({ ...prev, [day]: updatedSlots }));
     };
 
     const handleApplyToWeekdays = () => {
-        const fridaySlots = availability.friday;
-        setAvailability(prev => ({
-            ...prev,
-            monday: JSON.parse(JSON.stringify(fridaySlots)),
-            tuesday: JSON.parse(JSON.stringify(fridaySlots)),
-            wednesday: JSON.parse(JSON.stringify(fridaySlots)),
-            thursday: JSON.parse(JSON.stringify(fridaySlots)),
-        }));
+        const fridaySlots = JSON.parse(JSON.stringify(availability.friday || []));
+        setAvailability(prev => ({ ...prev, monday: fridaySlots, tuesday: fridaySlots, wednesday: fridaySlots, thursday: fridaySlots }));
     };
 
     const handleSaveChanges = async () => {
@@ -90,7 +96,7 @@ export default function CalendarPage() {
         setSaveMessage('');
         try {
             const docRef = doc(db, 'agent_availability', user.uid);
-            await setDoc(docRef, { agentId: user.uid, ...availability });
+            await setDoc(docRef, { agentId: user.uid, ...availability }, { merge: true });
             setSaveMessage('Availability saved successfully!');
         } catch (error) {
             console.error("Error saving availability:", error);
@@ -102,7 +108,7 @@ export default function CalendarPage() {
     };
 
     if (isLoading) {
-        return <div style={{padding: '40px'}}>Loading Calendar...</div>
+        return <div style={{padding: '40px'}}>Loading Calendar...</div>;
     }
 
     return (
@@ -118,7 +124,7 @@ export default function CalendarPage() {
 
             <div className="build-agent-tabs">
                 <button onClick={() => setActiveTab('schedule')} className={activeTab === 'schedule' ? 'active' : ''}>Weekly Schedule</button>
-                <button onClick={() => setActiveTab('overrides')} className={activeTab === 'overrides' ? 'active' : ''}>Date Overrides</button>
+                <button onClick={() => setActiveTab('overrides')} className={activeTab === 'overrides' ? 'active' : ''}>Bookings Calendar</button>
             </div>
 
             <div className="tab-content-wrapper">
@@ -127,14 +133,10 @@ export default function CalendarPage() {
                         <h2>Set Your Recurring Weekly Availability</h2>
                         <div className="weekly-schedule-grid">
                             {daysOfWeek.map(day => (
-                                <DaySchedule 
-                                    key={day}
-                                    day={day}
-                                    slots={availability[day] || []}
+                                <DaySchedule key={day} day={day} slots={availability[day]}
                                     onAddSlot={() => handleAddSlot(day)}
                                     onRemoveSlot={(index) => handleRemoveSlot(day, index)}
-                                    onSlotChange={(index, field, value) => handleSlotChange(day, index, field, value)}
-                                />
+                                    onSlotChange={(index, field, value) => handleSlotChange(day, index, field, value)} />
                             ))}
                         </div>
                          <div className="quick-set-actions">
@@ -144,9 +146,9 @@ export default function CalendarPage() {
                 )}
                 {activeTab === 'overrides' && (
                     <div className="tab-content">
-                        <h2>Date Overrides & Bookings</h2>
-                        <div className="calendar-placeholder">
-                            <p>Full Monthly Calendar View (Coming Soon)</p>
+                        <h2>Bookings Calendar</h2>
+                        <div className="calendar-container">
+                            <Calendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" defaultView="month" style={{ height: 650 }} />
                         </div>
                     </div>
                 )}
