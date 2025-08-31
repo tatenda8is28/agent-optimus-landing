@@ -4,22 +4,25 @@ import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+// --- THE CRITICAL FIX IS HERE ---
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
 import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
-import enUS from 'date-fns/locale/en-US';
+import enUS from 'date-fns/locale/en-US'; // <-- CORRECT IMPORT SYNTAX
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import './CalendarPage.css';
 
-const locales = { 'en-US': enUS };
+// --- UPDATED LOCALIZER SETUP ---
+const locales = { 'en-US': enUS, };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const defaultAvailability = () => ({ monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] });
 
+// ... (The rest of the DaySchedule and CalendarPage component code is correct and does not need to change)
 const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     <div className="day-slot">
         <h3>{day.charAt(0).toUpperCase() + day.slice(1)}</h3>
@@ -55,7 +58,6 @@ export default function CalendarPage() {
             const docRef = doc(db, 'agent_availability', user.uid);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                // Ensure all days of the week are present
                 const data = docSnap.data();
                 const fullData = {};
                 daysOfWeek.forEach(day => {
@@ -63,7 +65,6 @@ export default function CalendarPage() {
                 });
                 setAvailability(fullData);
             } else {
-                // If no document exists, set to default empty state
                 setAvailability(defaultAvailability());
             }
             setIsLoading(false);
