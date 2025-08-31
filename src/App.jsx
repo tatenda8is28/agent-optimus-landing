@@ -22,6 +22,8 @@ import AnalyticsPage from './AnalyticsPage.jsx';
 import BuildAgentPage from './BuildAgentPage.jsx';
 import CompanyInfoPage from './CompanyInfoPage.jsx';
 import AccountPage from './AccountPage.jsx';
+import CalendarPage from './CalendarPage.jsx';
+import PropertyDatabasePage from './PropertyDatabasePage.jsx';
 
 // Admin Dashboard Imports
 import AdminDashboard from './AdminDashboard.jsx';
@@ -50,7 +52,7 @@ const RedirectController = () => {
         }
       }
     } else {
-      const protectedPages = ['/dashboard', '/admin', '/activate', '/leads', '/analytics', '/build', '/company-info', '/account'];
+      const protectedPages = ['/dashboard', '/admin', '/activate', '/leads', '/properties', '/analytics', '/build', '/calendar', '/company-info', '/account'];
       if (protectedPages.some(page => location.pathname.startsWith(page))) {
         navigate('/login', { replace: true });
       }
@@ -81,8 +83,10 @@ function App() {
         <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<OverviewPage />} />
           <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/properties" element={<PropertyDatabasePage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/build" element={<BuildAgentPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/company-info" element={<CompanyInfoPage />} />
           <Route path="/account" element={<AccountPage />} />
         </Route>
@@ -90,7 +94,6 @@ function App() {
         {/* Admin-Only Routes (all protected by AdminRoute) */}
         <Route path="/admin" element={ <AdminRoute> <AdminDashboard /> </AdminRoute> } />
         <Route path="/admin/users/:userId" element={ <AdminRoute> <AdminAgentDetailPage /> </AdminRoute> } />
-
       </Routes>
     </>
   );
