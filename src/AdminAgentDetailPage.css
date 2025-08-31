@@ -1,5 +1,9 @@
 /* src/AdminAgentDetailPage.css */
-
+.admin-detail-page h2 {
+    font-size: 24px;
+    color: var(--ink);
+    margin-bottom: 24px;
+}
 .back-link {
     font-weight: 600;
     color: var(--green);
@@ -10,7 +14,7 @@
 
 .agent-detail-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 24px;
     margin-bottom: 24px;
 }
@@ -30,15 +34,36 @@
 }
 
 .detail-card p {
-    margin: 0 0 8px;
+    margin: 0 0 C;
     font-size: 14px;
 }
 .detail-card p strong {
     color: var(--ink-light);
+    display: inline-block;
+    width: 120px; /* Aligns the values */
+}
+.detail-card hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 12px 0;
+}
+
+.status-pill {
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+    background-color: #fffbeb;
+    color: #b45309;
+}
+.status-pill.ACTIVE_TRIAL {
+    background-color: var(--green-light);
+    color: var(--green-dark);
 }
 
 .code-block {
     background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 16px;
     font-family: monospace;
@@ -49,13 +74,14 @@
     overflow-y: auto;
 }
 
-.knowledge-display {
+.knowledge-display textarea {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--font-main);
     font-size: 14px;
     line-height: 1.6;
-}
-
-@media (max-width: 768px) {
-    .agent-detail-grid {
-        grid-template-columns: 1fr;
-    }
+    background-color: var(--bg-light);
+    resize: none;
 }
