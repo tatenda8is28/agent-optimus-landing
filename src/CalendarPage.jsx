@@ -3,12 +3,25 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
 import { doc, getDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+
+// --- CORRECT CALENDAR IMPORTS ---
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import format from 'date-fns/format';
+import parse from 'date-fns/parse';
+import startOfWeek from 'date-fns/startOfWeek';
+import getDay from 'date-fns/getDay';
+import enUS from 'date-fns/locale/en-US';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
 import './CalendarPage.css';
+
+// --- SETUP FOR react-big-calendar ---
+const locales = { 'en-US': enUS };
+const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const defaultAvailability = () => ({ monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] });
 
-// Sub-component for the weekly schedule editor
 const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     <div className="day-slot">
         <h3>{day.charAt(0).toUpperCase() + day.slice(1)}</h3>
@@ -28,10 +41,9 @@ const DaySchedule = ({ day, slots, onAddSlot, onRemoveSlot, onSlotChange }) => (
     </div>
 );
 
-// Main Page Component
 export default function CalendarPage() {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('schedule');
+    const [activeTab, setActiveTab] = useState('bookings');
     const [availability, setAvailability] = useState(defaultAvailability());
     const [bookings, setBookings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -44,53 +56,55 @@ export default function CalendarPage() {
             return;
         }
 
-        // This is a robust way to handle all data fetching
+        let isMounted = true;
+        const unsubscribers = [];
+
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch recurring availability
                 const availabilityRef = doc(db, 'agent_availability', user.uid);
                 const availabilitySnap = await getDoc(availabilityRef);
-                if (availabilitySnap.exists()) {
-                    const data = availabilitySnap.data();
-                    const fullData = {};
-                    daysOfWeek.forEach(day => { fullData[day] = data[day] || []; });
-                    setAvailability(fullData);
-                } else {
-                    setAvailability(defaultAvailability());
+                if (isMounted) {
+                    if (availabilitySnap.exists()) {
+                        const data = availabilitySnap.data();
+                        const fullData = {};
+                        daysOfWeek.forEach(day => { fullData[day] = data[day] || []; });
+                        setAvailability(fullData);
+                    } else {
+                        setAvailability(defaultAvailability());
+                    }
                 }
-
-                // Set up a real-time listener for bookings
-                const bookingsQuery = query(collection(db, 'bookings'), where('agentId', '==', user.uid));
-                const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
-                    const bookingsData = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        title: doc.data().title,
-                        start: doc.data().start.toDate(), // Convert Firestore Timestamp to JS Date
-                        end: doc.data().end.toDate(),
-                    }));
-                    setBookings(bookingsData);
-                });
-                
-                // Return the listener cleanup function
-                return unsubscribe;
-
             } catch (error) {
-                console.error("Error fetching calendar data:", error);
-            } finally {
-                setIsLoading(false);
+                console.error("Error fetching availability:", error);
             }
         };
 
-        const unsubscribePromise = fetchData();
+        const listenForBookings = () => {
+            const bookingsQuery = query(collection(db, 'bookings'), where('agentId', '==', user.uid));
+            const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+                const bookingsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    title: doc.data().title,
+                    start: doc.data().start.toDate(),
+                    end: doc.data().end.toDate(),
+                }));
+                if (isMounted) {
+                    setBookings(bookingsData);
+                    setIsLoading(false);
+                }
+            });
+            unsubscribers.push(unsubscribe);
+        };
+        
+        fetchData();
+        listenForBookings();
 
-        // Cleanup the listener when the component unmounts
         return () => {
-            unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+            isMounted = false;
+            unsubscribers.forEach(unsub => unsub());
         };
     }, [user]);
     
-    // --- All handler functions for the weekly schedule ---
     const handleAddSlot = (day) => setAvailability(prev => ({ ...prev, [day]: [...(prev[day] || []), { start: '09:00', end: '17:00' }] }));
     const handleRemoveSlot = (day, index) => setAvailability(prev => ({ ...prev, [day]: prev[day].filter((_, i) => i !== index) }));
     const handleSlotChange = (day, index, field, value) => {
@@ -127,9 +141,11 @@ export default function CalendarPage() {
         <div>
             <div className="page-title-header">
                 <h1>My Calendar & Availability</h1>
-                <button className="btn btn-primary" onClick={handleSaveChanges} disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save All Changes'}
-                </button>
+                {activeTab === 'schedule' && (
+                    <button className="btn btn-primary" onClick={handleSaveChanges} disabled={isSaving}>
+                        {isSaving ? 'Saving...' : 'Save All Changes'}
+                    </button>
+                )}
             </div>
             <p className="page-subtitle">Manage your weekly schedule and view appointments booked by your AI agent.</p>
             {saveMessage && <div className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>{saveMessage}</div>}
@@ -159,12 +175,15 @@ export default function CalendarPage() {
                 {activeTab === 'bookings' && (
                     <div className="tab-content">
                         <h2>Bookings Calendar</h2>
-                        <div className="calendar-placeholder">
-                            {bookings.length > 0 ? (
-                                <ul>{bookings.map(b => <li key={b.id}>{b.title} @ {b.start.toLocaleString()}</li>)}</ul>
-                            ) : (
-                                <p>No bookings found for this month.</p>
-                            )}
+                        <div className="calendar-container">
+                            <Calendar
+                                localizer={localizer}
+                                events={bookings}
+                                startAccessor="start"
+                                endAccessor="end"
+                                defaultView="month"
+                                style={{ height: 650 }}
+                            />
                         </div>
                     </div>
                 )}
