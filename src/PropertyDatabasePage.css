@@ -5,34 +5,20 @@
 .filter-search-input, .filter-select { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-white); font-size: 14px; }
 .filter-search-input { flex-grow: 1; }
 .db-filters .btn-primary { margin-left: auto; }
-
 .property-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
 .property-card { background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: all 0.2s ease; position: relative; }
 .property-card:hover { transform: translateY(-4px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-
 .property-image { height: 180px; background-size: cover; background-position: center; position: relative; }
 .property-status-tag { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 .status-active { background-color: rgba(5, 150, 105, 0.8); }
 .status-inactive { background-color: rgba(71, 85, 105, 0.8); }
-
-.property-menu { position: absolute; top: 8px; right: 8px; }
-.property-menu > button { background: rgba(0,0,0,0.3); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 18px; line-height: 1; cursor: pointer; }
-.property-menu .menu-dropdown { display: none; position: absolute; right: 0; top: 32px; background: var(--bg-white); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10; }
-.property-menu:hover .menu-dropdown { display: block; }
-.menu-dropdown a { display: block; padding: 8px 16px; text-decoration: none; color: var(--ink); font-size: 14px; }
-.menu-dropdown a:hover { background: var(--bg-light); }
-
-
 .property-content { padding: 16px; }
 .property-price { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
 .property-address { font-size: 14px; margin: 0 0 8px; color: var(--ink-light); }
 .property-specs { font-size: 14px; margin: 0; color: var(--ink); font-weight: 500; }
-
 .property-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px; }
 .property-source { font-size: 12px; font-weight: 500; color: var(--ink-light); background-color: var(--bg-light); padding: 4px 8px; border-radius: 4px;}
 .switch-label { font-size: 12px; color: var(--ink-light); font-weight: 500; }
-
-/* The toggle switch */
 .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
@@ -43,7 +29,7 @@ input:checked + .slider:before { transform: translateX(14px); }
 .slider.round { border-radius: 34px; }
 .slider.round:before { border-radius: 50%; }
 
-/* --- MODAL STYLES (can be moved to App.css if used globally) --- */
+/* --- MODAL STYLES --- */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
 .modal-content { position: relative; width: 90%; max-width: 500px; background: var(--bg-white); border-radius: 18px; padding: 32px; }
 .modal-close-btn { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--ink-light); }
@@ -51,4 +37,6 @@ input:checked + .slider:before { transform: translateX(14px); }
 .modal-content p { color: var(--ink-light); margin-bottom: 24px; }
 .template-link { display: block; text-align: center; margin-bottom: 16px; font-weight: 600; color: var(--green); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; }
+.csv-input { width: 100%; font-size: 14px; }
+.file-name-display { font-size: 12px; color: var(--ink-light); margin-top: 8px; text-align: center; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
