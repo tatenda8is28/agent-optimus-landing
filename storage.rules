@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// service firebase.storage { ... } is for Cloud Storage for Firebase
+service firebase.storage {
+  
+  // match /b/{bucket}/o { ... } applies your rules to all files in your Storage bucket
+  match /b/{bucket}/o {
+
+    // This rule targets files inside the 'property-uploads' folder.
+    // The {userId} is a wildcard that captures the user's unique ID from the folder name.
+    match /property-uploads/{userId}/{allPaths=**} {
+
+      // allow read, write: if request.auth != null && request.auth.uid == userId;
+      // This line is the security rule itself. It says:
+      // "Allow a user to read or write a file in this folder IF:
+      //  1. The user is logged in (request.auth != null)
+      //  2. The user's own ID (request.auth.uid) matches the folder name ({userId})"
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
