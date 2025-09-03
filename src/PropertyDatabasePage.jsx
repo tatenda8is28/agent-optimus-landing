@@ -1,4 +1,4 @@
-// src/PropertyDatabasePage.jsx (FINAL, DEFINITIVE VERSION)
+// src/PropertyDatabasePage.jsx (FINAL, DEBUG VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db, functions } from './firebaseClient';
@@ -21,14 +21,21 @@ export default function PropertyDatabasePage() {
 
     useEffect(() => {
         if (!user) { setIsLoading(false); return; }
+
+        console.log("PropertyDatabasePage is querying for agentId:", user.uid);
+        
         setIsLoading(true);
         const propertiesQuery = query(collection(db, 'properties'), where('agentId', '==', user.uid));
         const unsubscribe = onSnapshot(propertiesQuery, (snapshot) => {
+            console.log("Firestore listener fired! Found documents:", snapshot.size);
             const propsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             propsData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
             setProperties(propsData);
             setIsLoading(false);
-        }, (error) => { console.error("Error fetching properties:", error); setIsLoading(false); });
+        }, (error) => {
+            console.error("Error fetching properties:", error);
+            setIsLoading(false);
+        });
         return () => unsubscribe();
     }, [user]);
 
@@ -37,52 +44,29 @@ export default function PropertyDatabasePage() {
         if (!user || !newProperty.price || !newProperty.address) { alert("Price and Address are required."); return; }
         setIsUploading(true);
         try {
-            await addDoc(collection(db, 'properties'), {
-                agentId: user.uid,
-                price: parseInt(newProperty.price.replace(/[^0-9]/g, '')) || 0,
-                address: newProperty.address,
-                specs: newProperty.specs,
-                imageUrl: newProperty.imageUrl,
-                source: 'Manual Entry',
-                status: 'Active',
-                isAiEnabled: true,
-                createdAt: serverTimestamp(),
-                lastEditedBy: 'agent'
-            });
+            await addDoc(collection(db, 'properties'), { agentId: user.uid, price: parseInt(newProperty.price.replace(/[^0-9]/g, '')) || 0, address: newProperty.address, specs: newProperty.specs, imageUrl: newProperty.imageUrl, source: 'Manual Entry', status: 'Active', isAiEnabled: true, createdAt: serverTimestamp(), lastEditedBy: 'agent' });
             setNewProperty({ price: '', address: '', specs: '', imageUrl: '' });
             setIsAddModalOpen(false);
-        } catch (error) { console.error("Error adding new property:", error); alert(`Failed to add property: ${error.message}`);
-        } finally { setIsUploading(false); }
+        } catch (error) { console.error("Error adding new property:", error); alert(`Failed to add property: ${error.message}`); } 
+        finally { setIsUploading(false); }
     };
-    
-    const handleFileSelect = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; }
-            setCsvFile(e.target.files[0]);
-        }
-    };
-
+    const handleFileSelect = (e) => { if (e.target.files && e.target.files[0]) { if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; } setCsvFile(e.target.files[0]); } };
     const handleCsvImport = async () => {
         if (!user || !csvFile) { alert("Please select a CSV file to import."); return; }
         setIsUploading(true);
         try {
-            // Read the file content as a base64 string
             const reader = new FileReader();
             reader.readAsDataURL(csvFile);
             reader.onload = async () => {
                 const base64Content = reader.result.split(',')[1];
-                
                 const uploadPropertyCSV = httpsCallable(functions, 'uploadPropertyCSV');
                 await uploadPropertyCSV({ fileName: csvFile.name, fileContent: base64Content });
-                
                 alert("Upload and processing complete! Your properties should now be visible.");
                 setCsvFile(null);
                 setIsImportModalOpen(false);
                 setIsUploading(false);
             };
-            reader.onerror = (error) => {
-                throw new Error("Failed to read file.");
-            };
+            reader.onerror = () => { throw new Error("Failed to read file."); };
         } catch(error) {
             console.error("Error calling upload function:", error);
             alert(`File processing failed: ${error.message}`);
