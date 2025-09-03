@@ -126,7 +126,7 @@ export default function PropertyDatabasePage() {
                             </div>
                         ))
                     ) : (
-                        <div className="calendar-placeholder"><p>No properties found in your database. <br/>Use the buttons above to add your first listing.</p></div>
+                        <div className="calendar-placeholder"><p>No properties found in your database.. <br/>Use the buttons above to add your first listing.</p></div>
                     )}
                 </div>
             )}
