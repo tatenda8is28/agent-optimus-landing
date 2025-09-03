@@ -1,4 +1,4 @@
-// src/PropertyDatabasePage.jsx (FINAL, FULL VERSION)
+// src/PropertyDatabasePage.jsx (FINAL, ROBUST VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -27,10 +27,7 @@ export default function PropertyDatabasePage() {
     const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
-        if (!user) {
-            setIsLoading(false);
-            return;
-        }
+        if (!user) { setIsLoading(false); return; }
         setIsLoading(true);
         const propertiesQuery = query(collection(db, 'properties'), where('agentId', '==', user.uid));
         const unsubscribe = onSnapshot(propertiesQuery, (snapshot) => {
@@ -38,14 +35,12 @@ export default function PropertyDatabasePage() {
             propsData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
             setProperties(propsData);
             setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching properties:", error);
-            setIsLoading(false);
-        });
+        }, (error) => { console.error("Error fetching properties:", error); setIsLoading(false); });
         return () => unsubscribe();
     }, [user]);
 
     const handleNewPropertyChange = (e) => { const { name, value } = e.target; setNewProperty(prev => ({ ...prev, [name]: value })); };
+
     const handleAddPocketListing = async () => {
         if (!user || !newProperty.price || !newProperty.address) { alert("Price and Address are required."); return; }
         setIsUploading(true);
@@ -64,7 +59,7 @@ export default function PropertyDatabasePage() {
             });
             setNewProperty({ price: '', address: '', specs: '', imageUrl: '' });
             setIsAddModalOpen(false);
-        } catch (error) { console.error("Error adding new property:", error); alert("Failed to add property.");
+        } catch (error) { console.error("Error adding new property:", error); alert(`Failed to add property: ${error.message}`);
         } finally { setIsUploading(false); }
     };
     
@@ -86,8 +81,12 @@ export default function PropertyDatabasePage() {
             alert("Upload Complete! Your properties are being processed and will appear automatically in a few moments.");
             setCsvFile(null);
             setIsImportModalOpen(false);
-        } catch(error) { console.error("Error uploading file:", error); alert("File upload failed.");
-        } finally { setIsUploading(false); }
+        } catch(error) {
+            console.error("Error uploading file:", error);
+            alert(`File upload failed. Please ensure CORS is configured correctly. Error: ${error.message}`);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -112,7 +111,7 @@ export default function PropertyDatabasePage() {
                                     <div className={`property-status-tag status-${prop.status?.toLowerCase()}`}>{prop.status}</div>
                                 </div>
                                 <div className="property-content">
-                                    <p className="property-price">R {prop.price.toLocaleString('en-ZA')}</p>
+                                    <p className="property-price">R {prop.price ? prop.price.toLocaleString('en-ZA') : '0'}</p>
                                     <p className="property-address">{prop.address}</p>
                                     <p className="property-specs">{prop.specs}</p>
                                     <div className="property-footer">

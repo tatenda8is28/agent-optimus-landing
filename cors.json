@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://agentoptimus.co.za"],
+    "method": ["GET", "POST", "PUT"],
+    "responseHeader": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]
