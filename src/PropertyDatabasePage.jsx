@@ -1,8 +1,8 @@
-// src/PropertyDatabasePage.jsx (FINAL, FULL VERSION)
+// src/PropertyDatabasePage.jsx (FINAL, DEFINITIVE VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { db } from './firebaseClient';
-import { getStorage, ref, uploadBytes } from 'firebase/storage';
+import { db, functions } from './firebaseClient';
+import { httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import './PropertyDatabasePage.css';
 import placeholderImage from './assets/hero-image.png';
@@ -33,7 +33,6 @@ export default function PropertyDatabasePage() {
     }, [user]);
 
     const handleNewPropertyChange = (e) => { const { name, value } = e.target; setNewProperty(prev => ({ ...prev, [name]: value })); };
-
     const handleAddPocketListing = async () => {
         if (!user || !newProperty.price || !newProperty.address) { alert("Price and Address are required."); return; }
         setIsUploading(true);
@@ -56,21 +55,39 @@ export default function PropertyDatabasePage() {
         } finally { setIsUploading(false); }
     };
     
-    const handleFileSelect = (e) => { if (e.target.files && e.target.files[0]) { if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; } setCsvFile(e.target.files[0]); } };
+    const handleFileSelect = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; }
+            setCsvFile(e.target.files[0]);
+        }
+    };
 
     const handleCsvImport = async () => {
         if (!user || !csvFile) { alert("Please select a CSV file to import."); return; }
         setIsUploading(true);
         try {
-            const storage = getStorage();
-            const filePath = `property-uploads/${user.uid}/${Date.now()}-${csvFile.name}`;
-            const storageRef = ref(storage, filePath);
-            await uploadBytes(storageRef, csvFile);
-            alert("Upload Complete! Your properties are being processed and will appear automatically in a few moments.");
-            setCsvFile(null);
-            setIsImportModalOpen(false);
-        } catch(error) { console.error("Error uploading file:", error); alert(`File upload failed: ${error.message}`);
-        } finally { setIsUploading(false); }
+            // Read the file content as a base64 string
+            const reader = new FileReader();
+            reader.readAsDataURL(csvFile);
+            reader.onload = async () => {
+                const base64Content = reader.result.split(',')[1];
+                
+                const uploadPropertyCSV = httpsCallable(functions, 'uploadPropertyCSV');
+                await uploadPropertyCSV({ fileName: csvFile.name, fileContent: base64Content });
+                
+                alert("Upload and processing complete! Your properties should now be visible.");
+                setCsvFile(null);
+                setIsImportModalOpen(false);
+                setIsUploading(false);
+            };
+            reader.onerror = (error) => {
+                throw new Error("Failed to read file.");
+            };
+        } catch(error) {
+            console.error("Error calling upload function:", error);
+            alert(`File processing failed: ${error.message}`);
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -94,7 +111,7 @@ export default function PropertyDatabasePage() {
                     ) : ( <div className="calendar-placeholder"><p>No properties found in your database. <br/>Use the buttons above to add your first listing.</p></div> )}
                 </div>
             )}
-            {isImportModalOpen && ( <Modal onClose={() => setIsImportModalOpen(false)}> <h2>Import from Property24 CSV</h2> <a href="/property24-template.csv" download className="template-link">Download Template CSV</a> <input type="file" accept=".csv" onChange={handleFileSelect} className="csv-input" /> {csvFile && <p className="file-name-display">Selected file: {csvFile.name}</p>} <div className="modal-actions"> <button className="btn btn-outline" onClick={() => setIsImportModalOpen(false)}>Cancel</button> <button className="btn btn-primary" onClick={handleCsvImport} disabled={isUploading || !csvFile}>{isUploading ? 'Uploading...' : 'Upload & Process'}</button> </div> </Modal> )}
+            {isImportModalOpen && ( <Modal onClose={() => setIsImportModalOpen(false)}> <h2>Import from Property24 CSV</h2> <a href="/property24-template.csv" download className="template-link">Download Template CSV</a> <input type="file" accept=".csv" onChange={handleFileSelect} className="csv-input" /> {csvFile && <p className="file-name-display">Selected file: {csvFile.name}</p>} <div className="modal-actions"> <button className="btn btn-outline" onClick={() => setIsImportModalOpen(false)}>Cancel</button> <button className="btn btn-primary" onClick={handleCsvImport} disabled={isUploading || !csvFile}>{isUploading ? 'Uploading & Processing...' : 'Upload & Process'}</button> </div> </Modal> )}
             {isAddModalOpen && ( <Modal onClose={() => setIsAddModalOpen(false)}> <h2>Add New "Pocket" Listing</h2> <div className="wizard-form-group"><label>Price (e.g., 1500000)</label><input name="price" value={newProperty.price} onChange={handleNewPropertyChange} /></div> <div className="wizard-form-group"><label>Address</label><input name="address" value={newProperty.address} onChange={handleNewPropertyChange} /></div> <div className="wizard-form-group"><label>Key Specs (e.g., 3 Bed | 2 Bath)</label><input name="specs" value={newProperty.specs} onChange={handleNewPropertyChange} /></div> <div className="wizard-form-group"><label>Image URL (Optional)</label><input name="imageUrl" value={newProperty.imageUrl} onChange={handleNewPropertyChange} /></div> <div className="modal-actions"> <button className="btn btn-outline" onClick={() => setIsAddModalOpen(false)}>Cancel</button> <button className="btn btn-primary" onClick={handleAddPocketListing} disabled={isUploading}>{isUploading ? 'Saving...' : 'Save Property'}</button> </div> </Modal> )}
         </div>
     );
