@@ -1,4 +1,4 @@
-// src/PropertyDatabasePage.jsx (FINAL, ROBUST VERSION)
+// src/PropertyDatabasePage.jsx (FINAL, FULL VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -7,14 +7,7 @@ import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'f
 import './PropertyDatabasePage.css';
 import placeholderImage from './assets/hero-image.png';
 
-const Modal = ({ children, onClose }) => (
-    <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={onClose}>&times;</button>
-            {children}
-        </div>
-    </div>
-);
+const Modal = ({ children, onClose }) => ( <div className="modal-overlay" onClick={onClose}><div className="modal-content" onClick={(e) => e.stopPropagation()}><button className="modal-close-btn" onClick={onClose}>&times;</button>{children}</div></div> );
 
 export default function PropertyDatabasePage() {
     const { user } = useAuth();
@@ -63,12 +56,7 @@ export default function PropertyDatabasePage() {
         } finally { setIsUploading(false); }
     };
     
-    const handleFileSelect = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; }
-            setCsvFile(e.target.files[0]);
-        }
-    };
+    const handleFileSelect = (e) => { if (e.target.files && e.target.files[0]) { if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; } setCsvFile(e.target.files[0]); } };
 
     const handleCsvImport = async () => {
         if (!user || !csvFile) { alert("Please select a CSV file to import."); return; }
@@ -81,53 +69,29 @@ export default function PropertyDatabasePage() {
             alert("Upload Complete! Your properties are being processed and will appear automatically in a few moments.");
             setCsvFile(null);
             setIsImportModalOpen(false);
-        } catch(error) {
-            console.error("Error uploading file:", error);
-            alert(`File upload failed. Please ensure CORS is configured correctly. Error: ${error.message}`);
-        } finally {
-            setIsUploading(false);
-        }
+        } catch(error) { console.error("Error uploading file:", error); alert(`File upload failed: ${error.message}`);
+        } finally { setIsUploading(false); }
     };
 
     return (
         <div>
-            <div className="page-title-header">
-                <h1>Property Database</h1>
-                <div className="db-header-actions">
-                    <button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>📥 Import from Property24</button>
-                </div>
-            </div>
+            <div className="page-title-header"><h1>Property Database</h1><div className="db-header-actions"><button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>📥 Import from Property24</button></div></div>
             <p className="page-subtitle">Manage your listings via CSV or add individual properties manually.</p>
-            <div className="db-filters">
-                <input type="text" placeholder="Search by address or suburb..." className="filter-search-input" />
-                <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>+ Add Pocket Listing</button>
-            </div>
+            <div className="db-filters"><input type="text" placeholder="Search by address or suburb..." className="filter-search-input" /><button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>+ Add Pocket Listing</button></div>
             {isLoading ? <p style={{padding: '20px'}}>Loading properties...</p> : (
                 <div className="property-grid">
                     {properties.length > 0 ? (
                         properties.map(prop => (
                             <div key={prop.id} className="property-card">
-                                <div className="property-image" style={{backgroundImage: `url(${prop.imageUrl || placeholderImage})`}}>
-                                    <div className={`property-status-tag status-${prop.status?.toLowerCase()}`}>{prop.status}</div>
-                                </div>
+                                <div className="property-image" style={{backgroundImage: `url(${prop.imageUrl || placeholderImage})`}}><div className={`property-status-tag status-${prop.status?.toLowerCase()}`}>{prop.status}</div></div>
                                 <div className="property-content">
                                     <p className="property-price">R {prop.price ? prop.price.toLocaleString('en-ZA') : '0'}</p>
-                                    <p className="property-address">{prop.address}</p>
-                                    <p className="property-specs">{prop.specs}</p>
-                                    <div className="property-footer">
-                                        <span className="property-source">{prop.source}</span>
-                                        <label className="switch-label">Visible to AI</label>
-                                        <label className="switch">
-                                            <input type="checkbox" defaultChecked={prop.isAiEnabled} />
-                                            <span className="slider round"></span>
-                                        </label>
-                                    </div>
+                                    <p className="property-address">{prop.address}</p><p className="property-specs">{prop.specs}</p>
+                                    <div className="property-footer"><span className="property-source">{prop.source}</span><label className="switch-label">Visible to AI</label><label className="switch"><input type="checkbox" defaultChecked={prop.isAiEnabled} /><span className="slider round"></span></label></div>
                                 </div>
                             </div>
                         ))
-                    ) : (
-                        <div className="calendar-placeholder"><p>No properties found in your database.. <br/>Use the buttons above to add your first listing.</p></div>
-                    )}
+                    ) : ( <div className="calendar-placeholder"><p>No properties found in your database. <br/>Use the buttons above to add your first listing.</p></div> )}
                 </div>
             )}
             {isImportModalOpen && ( <Modal onClose={() => setIsImportModalOpen(false)}> <h2>Import from Property24 CSV</h2> <a href="/property24-template.csv" download className="template-link">Download Template CSV</a> <input type="file" accept=".csv" onChange={handleFileSelect} className="csv-input" /> {csvFile && <p className="file-name-display">Selected file: {csvFile.name}</p>} <div className="modal-actions"> <button className="btn btn-outline" onClick={() => setIsImportModalOpen(false)}>Cancel</button> <button className="btn btn-primary" onClick={handleCsvImport} disabled={isUploading || !csvFile}>{isUploading ? 'Uploading...' : 'Upload & Process'}</button> </div> </Modal> )}
