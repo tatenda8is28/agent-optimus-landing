@@ -1,4 +1,4 @@
-// src/LeadsPage.jsx (FINAL, INTUITIVE UI VERSION)
+// src/LeadsPage.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -49,10 +49,7 @@ const LeadCard = ({ lead, onClick }) => {
     return (
         <div ref={setNodeRef} style={style} className="lead-card-wrapper">
             <div className="lead-card" onClick={onClick} {...attributes} {...listeners}>
-                <div className="lead-card-header">
-                    <p className="lead-name">{lead.name}</p>
-                    <span className="lead-timestamp">{lead.createdAt?.toDate().toLocaleDateString()}</span>
-                </div>
+                <div className="lead-card-header"><p className="lead-name">{lead.name}</p><span className="lead-timestamp">{lead.createdAt?.toDate().toLocaleDateString()}</span></div>
                 <div className="lead-details">
                     <div className="lead-detail-item"><span className="detail-label">Finance</span><span className="detail-value">{lead.financial_position || '--'}</span></div>
                     <div className="lead-detail-item"><span className="detail-label">Timeline</span><span className="detail-value">{lead.timeline || '--'}</span></div>
@@ -79,6 +76,7 @@ export default function LeadsPage() {
     const [leads, setLeads] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState(null);
+    const [activeView, setActiveView] = useState('pipeline');
 
     const columns = ['New Inquiry', 'Contacted', 'Viewing Booked', 'Offer Made'];
 
@@ -108,15 +106,24 @@ export default function LeadsPage() {
     return (
         <div>
             <div className="page-title-header"><h1>Leads</h1><button className="btn btn-primary">Add New Lead</button></div>
-            <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-                <div className="kanban-board">
-                    {columns.map(columnId => (
-                        <KanbanColumn key={columnId} id={columnId} title={columnId}
-                            leads={leads.filter(lead => lead.status === columnId)}
-                            onCardClick={(lead) => setSelectedLead(lead)} />
-                    ))}
-                </div>
-            </DndContext>
+            <div className="build-agent-tabs">
+                <button onClick={() => setActiveView('pipeline')} className={activeView === 'pipeline' ? 'active' : ''}>🔥 Hot Leads (Pipeline)</button>
+                <button onClick={() => setActiveView('inbox')} className={activeView === 'inbox' ? 'active' : ''}>📥 Inbox (All Conversations)</button>
+            </div>
+            <div className="tab-content-wrapper">
+                {activeView === 'pipeline' && (
+                    <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+                        <div className="kanban-board">
+                            {columns.map(columnId => (
+                                <KanbanColumn key={columnId} id={columnId} title={columnId}
+                                    leads={leads.filter(lead => lead.status === columnId)}
+                                    onCardClick={(lead) => setSelectedLead(lead)} />
+                            ))}
+                        </div>
+                    </DndContext>
+                )}
+                {activeView === 'inbox' && ( <div className="inbox-placeholder"><p>Inbox view with all conversation history is coming soon.</p></div> )}
+            </div>
             <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
         </div>
     );
