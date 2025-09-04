@@ -1,76 +1,67 @@
 /* src/LeadsPage.css */
-.page-title-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
-}
+.page-title-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+.page-title-header h1 { font-size: 28px; margin: 0; color: var(--ink); }
 
-.page-title-header h1 {
-    font-size: 28px;
-    margin: 0;
-    color: var(--ink);
-}
+.kanban-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; width: 100%; }
+.kanban-column { background-color: transparent; border-radius: 12px; }
+.kanban-column-title { font-size: 16px; font-weight: 600; padding: 0 8px 16px; border-bottom: 2px solid var(--border-color); margin: 0 0 16px; }
+.kanban-column-title span { color: var(--ink-light); font-weight: 500; }
+.kanban-column-body { display: flex; flex-direction: column; gap: 16px; min-height: 200px; }
 
-.kanban-board {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 24px;
-    width: 100%;
-}
-
-.kanban-column {
-    background-color: transparent;
-    border-radius: 12px;
-}
-
-.kanban-column-title {
-    font-size: 16px;
-    font-weight: 600;
-    padding: 0 8px 16px;
-    border-bottom: 2px solid var(--border-color);
-    margin: 0 0 16px;
-}
-.kanban-column-title span {
-    color: var(--ink-light);
-    font-weight: 500;
-}
-
-.kanban-column-body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
+/* --- NEW DATA-RICH CARD STYLES --- */
+.lead-card-wrapper { touch-action: none; } /* For dnd-kit */
 .lead-card {
     background-color: var(--bg-white);
     border: 1px solid var(--border-color);
     padding: 16px;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    cursor: grab;
+    cursor: pointer;
 }
-.lead-card:hover {
-    border-color: var(--green);
-}
+.lead-card:hover { border-color: var(--green); }
+.lead-name { margin: 0 0 12px; font-weight: 600; color: var(--ink); }
+.lead-details p { font-size: 13px; color: var(--ink-light); margin: 0 0 4px; }
+.lead-details p strong { color: var(--ink); font-weight: 500; }
 
-.lead-name {
-    margin: 0 0 4px;
-    font-weight: 600;
-    color: var(--ink);
-}
+/* --- NEW DRILL-DOWN MODAL STYLES --- */
+.lead-modal { max-width: 900px !important; }
+.lead-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.lead-profile-section h2, .conversation-log-section h2 { font-size: 20px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;}
+.lead-profile-section p { font-size: 14px; margin: 0 0 10px; }
+.lead-profile-section p strong { color: var(--ink-light); }
+.lead-profile-section hr { border: none; border-top: 1px solid var(--border-color); margin: 16px 0; }
 
-.lead-property {
-    margin: 0;
-    font-size: 14px;
-    color: var(--ink-light);
-}
-
-.lead-card-placeholder {
-    padding: 24px;
-    text-align: center;
-    font-size: 14px;
-    color: var(--ink-light);
-    border: 2px dashed var(--border-color);
+.conversation-log {
+    background-color: var(--bg-light);
     border-radius: 8px;
+    padding: 16px;
+    height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.chat-bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    max-width: 80%;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.chat-bubble.user {
+    background-color: var(--bg-white);
+    border: 1px solid var(--border-color);
+    align-self: flex-start;
+}
+.chat-bubble.assistant {
+    background-color: var(--green-light);
+    color: var(--green-dark);
+    align-self: flex-end;
+}
+.chat-timestamp {
+    display: block;
+    font-size: 10px;
+    color: var(--ink-light);
+    margin-top: 4px;
+    text-align: right;
 }
