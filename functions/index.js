@@ -67,6 +67,7 @@ async function processCSV(filePath, agentId) {
                 title: record.title || '',
                 address: record.suburb || '', // Using 'suburb' for the main address field
                 suburb: record.suburb || '',
+                suburb_lowercase: (record.suburb || '').toLowerCase(),
                 description: record.description || '',
                 bedrooms: parseInt(record.bedroom) || null,    // Corrected to 'bedroom'
                 bathrooms: parseFloat(record.bath) || null,     // Corrected to 'bath'
