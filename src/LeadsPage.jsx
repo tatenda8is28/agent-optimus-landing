@@ -2,14 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { DndContext, closestCorners } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import './LeadsPage.css';
-import { ConversationList } from './components/ConversationList.jsx';
-import { ChatView } from './components/ChatView.jsx';
+import { PipelineView } from './components/PipelineView.jsx';
+import { InboxView } from './components/InboxView.jsx';
 
+// This will be our new modal, clean and simple
 const LeadDetailModal = ({ lead, onClose }) => {
     if (!lead) return null;
     return (
@@ -45,46 +43,12 @@ const LeadDetailModal = ({ lead, onClose }) => {
     );
 };
 
-const LeadCard = ({ lead, onClick }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: lead.id });
-    const style = { transform: CSS.Transform.toString(transform), transition };
-    return (
-        <div ref={setNodeRef} style={style} className="lead-card-wrapper">
-            <div className="lead-card" onClick={onClick} {...attributes} {...listeners}>
-                <div className="lead-card-header">
-                    <p className="lead-name">{lead.name}</p>
-                    <span className="lead-timestamp">{lead.createdAt?.toDate().toLocaleDateString()}</span>
-                </div>
-                <div className="lead-details">
-                    <div className="lead-detail-item"><span className="detail-label">Finance</span><span className="detail-value">{lead.financial_position || '--'}</span></div>
-                    <div className="lead-detail-item"><span className="detail-label">Timeline</span><span className="detail-value">{lead.timeline || '--'}</span></div>
-                    <div className="lead-detail-item"><span className="detail-label">Email</span><span className="detail-value">{lead.email || '--'}</span></div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const KanbanColumn = ({ id, title, leads, onCardClick }) => (
-    <div className="kanban-column">
-        <h2 className="kanban-column-title">{title} <span>({leads.length})</span></h2>
-        <div className="kanban-column-body">
-            <SortableContext id={id} items={leads} strategy={verticalListSortingStrategy}>
-                {leads.map(lead => <LeadCard key={lead.id} lead={lead} onClick={() => onCardClick(lead)} />)}
-            </SortableContext>
-        </div>
-    </div>
-);
-
 export default function LeadsPage() {
     const { user } = useAuth();
     const [leads, setLeads] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedLeadModal, setSelectedLeadModal] = useState(null);
     const [activeView, setActiveView] = useState('pipeline');
-    const [selectedConversation, setSelectedConversation] = useState(null);
-
-    const columns = ['New Inquiry', 'Contacted', 'Viewing Booked', 'Offer Made'];
+    const [selectedLead, setSelectedLead] = useState(null);
 
     useEffect(() => {
         if (!user) return;
@@ -94,55 +58,29 @@ export default function LeadsPage() {
             const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             leadsData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
             setLeads(leadsData);
-            if (leadsData.length > 0 && !selectedConversation) {
-                setSelectedConversation(leadsData[0]);
-            }
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [user, selectedConversation]);
+    }, [user]);
 
-    const handleDragEnd = async (event) => {
-        const { active, over } = event;
-        if (active.id !== over?.id && over?.id) {
-            const leadRef = doc(db, 'leads', active.id);
-            await updateDoc(leadRef, { status: over.id });
-        }
-    };
-    
     if (isLoading) return <div style={{padding: '40px'}}>Loading leads...</div>;
 
     return (
         <div>
-            <div className="page-title-header"><h1>Leads</h1><button className="btn btn-primary">Add New Lead</button></div>
+            <div className="page-title-header"><h1>Leads</h1></div>
             <div className="build-agent-tabs">
                 <button onClick={() => setActiveView('pipeline')} className={activeView === 'pipeline' ? 'active' : ''}>🔥 Hot Leads (Pipeline)</button>
                 <button onClick={() => setActiveView('inbox')} className={activeView === 'inbox' ? 'active' : ''}>📥 Inbox (All Conversations)</button>
             </div>
             <div className="tab-content-wrapper">
                 {activeView === 'pipeline' && (
-                    <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-                        <div className="kanban-board">
-                            {columns.map(columnId => (
-                                <KanbanColumn key={columnId} id={columnId} title={columnId}
-                                    leads={leads.filter(lead => lead.status === columnId)}
-                                    onCardClick={(lead) => setSelectedLeadModal(lead)} />
-                            ))}
-                        </div>
-                    </DndContext>
+                    <PipelineView leads={leads} onSelectLead={setSelectedLead} />
                 )}
                 {activeView === 'inbox' && (
-                    <div className="inbox-view">
-                        <ConversationList 
-                            leads={leads} 
-                            selectedLead={selectedConversation} 
-                            onSelectLead={setSelectedConversation} 
-                        />
-                        <ChatView lead={selectedConversation} />
-                    </div>
+                    <InboxView leads={leads} />
                 )}
             </div>
-            <LeadDetailModal lead={selectedLeadModal} onClose={() => setSelectedLeadModal(null)} />
+            <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
         </div>
     );
 }
