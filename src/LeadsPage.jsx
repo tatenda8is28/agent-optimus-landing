@@ -1,4 +1,4 @@
-// src/LeadsPage.jsx (FINAL, DATA-RICH VERSION)
+// src/LeadsPage.jsx (FINAL, INTUITIVE UI VERSION)
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -8,7 +8,6 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import './LeadsPage.css';
 
-// --- NEW "DRILL-DOWN" MODAL COMPONENT ---
 const LeadDetailModal = ({ lead, onClose }) => {
     if (!lead) return null;
     return (
@@ -22,8 +21,7 @@ const LeadDetailModal = ({ lead, onClose }) => {
                         <p><strong>Contact:</strong> {lead.contact}</p>
                         <p><strong>Email:</strong> {lead.email || 'N/A'}</p>
                         <p><strong>Property URL:</strong> <a href={lead.propertyUrl} target="_blank" rel="noopener noreferrer">View Listing</a></p>
-                        <hr />
-                        <h3>Qualification</h3>
+                        <hr /><h3>Qualification</h3>
                         <p><strong>Timeline:</strong> {lead.timeline || 'N/A'}</p>
                         <p><strong>Finance:</strong> {lead.financial_position || 'N/A'}</p>
                         <p><strong>Preferences:</strong> {lead.preferences || 'N/A'}</p>
@@ -34,7 +32,7 @@ const LeadDetailModal = ({ lead, onClose }) => {
                             {lead.conversation?.map((msg, index) => (
                                 <div key={index} className={`chat-bubble ${msg.role}`}>
                                     {msg.content}
-                                    <span className="chat-timestamp">{msg.timestamp?.toDate().toLocaleTimeString()}</span>
+                                    <span className="chat-timestamp">{msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                 </div>
                             ))}
                         </div>
@@ -45,20 +43,20 @@ const LeadDetailModal = ({ lead, onClose }) => {
     );
 };
 
-
-// --- UPDATED, DATA-RICH LEAD CARD COMPONENT ---
 const LeadCard = ({ lead, onClick }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: lead.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
-    
     return (
-        // Added onClick to the div that is NOT being dragged
         <div ref={setNodeRef} style={style} className="lead-card-wrapper">
             <div className="lead-card" onClick={onClick} {...attributes} {...listeners}>
-                <p className="lead-name">{lead.name}</p>
+                <div className="lead-card-header">
+                    <p className="lead-name">{lead.name}</p>
+                    <span className="lead-timestamp">{lead.createdAt?.toDate().toLocaleDateString()}</span>
+                </div>
                 <div className="lead-details">
-                    <p><strong>Finance:</strong> {lead.financial_position || '...'}</p>
-                    <p><strong>Timeline:</strong> {lead.timeline || '...'}</p>
+                    <div className="lead-detail-item"><span className="detail-label">Finance</span><span className="detail-value">{lead.financial_position || '--'}</span></div>
+                    <div className="lead-detail-item"><span className="detail-label">Timeline</span><span className="detail-value">{lead.timeline || '--'}</span></div>
+                    <div className="lead-detail-item"><span className="detail-label">Email</span><span className="detail-value">{lead.email || '--'}</span></div>
                 </div>
             </div>
         </div>
@@ -80,7 +78,7 @@ export default function LeadsPage() {
     const { user } = useAuth();
     const [leads, setLeads] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedLead, setSelectedLead] = useState(null); // State for the modal
+    const [selectedLead, setSelectedLead] = useState(null);
 
     const columns = ['New Inquiry', 'Contacted', 'Viewing Booked', 'Offer Made'];
 
@@ -113,11 +111,9 @@ export default function LeadsPage() {
             <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
                 <div className="kanban-board">
                     {columns.map(columnId => (
-                        <KanbanColumn
-                            key={columnId} id={columnId} title={columnId}
+                        <KanbanColumn key={columnId} id={columnId} title={columnId}
                             leads={leads.filter(lead => lead.status === columnId)}
-                            onCardClick={(lead) => setSelectedLead(lead)}
-                        />
+                            onCardClick={(lead) => setSelectedLead(lead)} />
                     ))}
                 </div>
             </DndContext>
