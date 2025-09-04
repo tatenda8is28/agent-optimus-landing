@@ -1,4 +1,4 @@
-// functions/index.js
+// functions/index.js (FINAL, CORRECTED VERSION)
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
@@ -9,6 +9,7 @@ const { logger } = require("firebase-functions");
 admin.initializeApp();
 const firestore = admin.firestore();
 
+// --- activateUserTrial function (no changes) ---
 exports.activateUserTrial = onCall(async (request) => {
     if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
     const callerUid = request.auth.uid;
@@ -32,6 +33,7 @@ exports.activateUserTrial = onCall(async (request) => {
     }
 });
 
+// --- Internal helper function to process the CSV data ---
 async function processCSV(filePath, agentId) {
     const bucket = admin.storage().bucket();
     const file = bucket.file(filePath);
@@ -48,11 +50,13 @@ async function processCSV(filePath, agentId) {
 
     for await (const record of parser) {
         try {
+            // Use the header from your CSV: 'property_url'
             if (!record.property_url) continue;
 
             const docId = Buffer.from(record.property_url).toString('base64');
             const docRef = firestore.collection('properties').doc(docId);
             
+            // --- THIS SECTION IS NOW CORRECTED TO MATCH YOUR CSV HEADERS ---
             const priceNum = parseInt(record.price?.replace(/[^0-9]/g, '')) || 0;
             
             const newPropertyData = {
@@ -61,13 +65,13 @@ async function processCSV(filePath, agentId) {
                 imageUrl: record.image_url || '',
                 price: priceNum,
                 title: record.title || '',
-                address: record.address || '',
+                address: record.suburb || '', // Using 'suburb' for the main address field
                 suburb: record.suburb || '',
                 description: record.description || '',
-                bedrooms: parseInt(record.bedrooms) || null,
-                bathrooms: parseFloat(record.bathrooms) || null,
-                garages: parseInt(record.garages) || null,
-                size: record.size || '',
+                bedrooms: parseInt(record.bedroom) || null,    // Corrected to 'bedroom'
+                bathrooms: parseFloat(record.bath) || null,     // Corrected to 'bath'
+                garages: parseInt(record.garage) || null,     // Corrected to 'garage'
+                size: record.p24_size || '',                  // Corrected to 'p24_size'
                 source: "Property24",
                 status: 'Active',
                 isAiEnabled: true,
@@ -85,16 +89,12 @@ async function processCSV(filePath, agentId) {
     return file.delete();
 }
 
+// --- uploadPropertyCSV function that the frontend calls (no changes) ---
 exports.uploadPropertyCSV = onCall(async (request) => {
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'You must be logged in.');
-    }
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
     const agentId = request.auth.uid;
     const { fileContent, fileName } = request.data;
-    
-    if (!fileContent || !fileName) {
-        throw new HttpsError('invalid-argument', 'Missing file content or name.');
-    }
+    if (!fileContent || !fileName) { throw new HttpsError('invalid-argument', 'Missing file content or name.'); }
 
     const bucket = admin.storage().bucket();
     const filePath = `property-uploads/${agentId}/${Date.now()}-${fileName}`;
@@ -103,11 +103,8 @@ exports.uploadPropertyCSV = onCall(async (request) => {
     try {
         const buffer = Buffer.from(fileContent, 'base64');
         await file.save(buffer, { contentType: 'text/csv' });
-        
         logger.log(`File uploaded to: ${filePath}`);
-        
         await processCSV(filePath, agentId);
-
         return { success: true, message: 'File processed successfully.' };
     } catch (error) {
         logger.error('Upload and processing failed:', error);

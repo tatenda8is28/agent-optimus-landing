@@ -1,5 +1,5 @@
-// src/PropertyDatabasePage.jsx
-import { useState, useEffect } from 'react';
+// src/PropertyDatabasePage.jsx (FINAL, WITH SEARCH AND COUNTS)
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { db, functions } from './firebaseClient';
 import { httpsCallable } from 'firebase/functions';
@@ -27,6 +27,7 @@ export default function PropertyDatabasePage() {
     const [newProperty, setNewProperty] = useState({ price: '', address: '', specs: '', imageUrl: '' });
     const [csvFile, setCsvFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         if (!user) { setIsLoading(false); return; }
@@ -40,6 +41,16 @@ export default function PropertyDatabasePage() {
         }, (error) => { console.error("Error fetching properties:", error); setIsLoading(false); });
         return () => unsubscribe();
     }, [user]);
+
+    const filteredProperties = useMemo(() => {
+        if (!searchTerm) {
+            return properties;
+        }
+        return properties.filter(prop => 
+            prop.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            prop.suburb?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [properties, searchTerm]);
 
     const handleNewPropertyChange = (e) => { const { name, value } = e.target; setNewProperty(prev => ({ ...prev, [name]: value })); };
 
@@ -81,13 +92,29 @@ export default function PropertyDatabasePage() {
 
     return (
         <div>
-            <div className="page-title-header"><h1>Property Database</h1><div className="db-header-actions"><button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>📥 Import from Property24</button></div></div>
-            <p className="page-subtitle">Manage your listings via CSV or add individual properties manually.</p>
-            <div className="db-filters"><input type="text" placeholder="Search by address or suburb..." className="filter-search-input" /><button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>+ Add Pocket Listing</button></div>
+            <div className="page-title-header">
+                <h1>Property Database</h1>
+                <div className="db-header-actions">
+                    <button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>📥 Import from Property24</button>
+                </div>
+            </div>
+            <p className="page-subtitle">
+                Displaying {filteredProperties.length} of {properties.length} total properties. Manage your listings below.
+            </p>
+            <div className="db-filters">
+                <input 
+                    type="text" 
+                    placeholder="Search by address or suburb..." 
+                    className="filter-search-input"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>+ Add Pocket Listing</button>
+            </div>
             {isLoading ? <p style={{padding: '20px'}}>Loading properties...</p> : (
                 <div className="property-grid">
-                    {properties.length > 0 ? (
-                        properties.map(prop => (
+                    {filteredProperties.length > 0 ? (
+                        filteredProperties.map(prop => (
                             <div key={prop.id} className="property-card">
                                 <div className="property-image" style={{backgroundImage: `url(${prop.imageUrl || placeholderImage})`}}><div className={`property-status-tag status-${prop.status?.toLowerCase()}`}>{prop.status}</div></div>
                                 <div className="property-content">
@@ -98,7 +125,7 @@ export default function PropertyDatabasePage() {
                                 </div>
                             </div>
                         ))
-                    ) : ( <div className="calendar-placeholder"><p>No properties found in your database. <br/>Use the buttons above to add your first listing.</p></div> )}
+                    ) : ( <div className="calendar-placeholder"><p>No properties found in your database or matching your search.</p></div> )}
                 </div>
             )}
             {isImportModalOpen && ( <Modal onClose={() => setIsImportModalOpen(false)}> <h2>Import from Property24 CSV</h2> <a href="/agent-optimus-template.csv" download className="template-link">Download Template CSV</a> <input type="file" accept=".csv" onChange={handleFileSelect} className="csv-input" /> {csvFile && <p className="file-name-display">Selected file: {csvFile.name}</p>} <div className="modal-actions"> <button className="btn btn-outline" onClick={() => setIsImportModalOpen(false)}>Cancel</button> <button className="btn btn-primary" onClick={handleCsvImport} disabled={isUploading || !csvFile}>{isUploading ? 'Uploading & Processing...' : 'Upload & Process'}</button> </div> </Modal> )}
