@@ -7,6 +7,8 @@ import { DndContext, closestCorners } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import './LeadsPage.css';
+import { ConversationList } from './components/ConversationList.jsx';
+import { ChatView } from './components/ChatView.jsx';
 
 const LeadDetailModal = ({ lead, onClose }) => {
     if (!lead) return null;
@@ -49,7 +51,10 @@ const LeadCard = ({ lead, onClick }) => {
     return (
         <div ref={setNodeRef} style={style} className="lead-card-wrapper">
             <div className="lead-card" onClick={onClick} {...attributes} {...listeners}>
-                <div className="lead-card-header"><p className="lead-name">{lead.name}</p><span className="lead-timestamp">{lead.createdAt?.toDate().toLocaleDateString()}</span></div>
+                <div className="lead-card-header">
+                    <p className="lead-name">{lead.name}</p>
+                    <span className="lead-timestamp">{lead.createdAt?.toDate().toLocaleDateString()}</span>
+                </div>
                 <div className="lead-details">
                     <div className="lead-detail-item"><span className="detail-label">Finance</span><span className="detail-value">{lead.financial_position || '--'}</span></div>
                     <div className="lead-detail-item"><span className="detail-label">Timeline</span><span className="detail-value">{lead.timeline || '--'}</span></div>
@@ -75,8 +80,9 @@ export default function LeadsPage() {
     const { user } = useAuth();
     const [leads, setLeads] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedLead, setSelectedLead] = useState(null);
+    const [selectedLeadModal, setSelectedLeadModal] = useState(null);
     const [activeView, setActiveView] = useState('pipeline');
+    const [selectedConversation, setSelectedConversation] = useState(null);
 
     const columns = ['New Inquiry', 'Contacted', 'Viewing Booked', 'Offer Made'];
 
@@ -88,10 +94,13 @@ export default function LeadsPage() {
             const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             leadsData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
             setLeads(leadsData);
+            if (leadsData.length > 0 && !selectedConversation) {
+                setSelectedConversation(leadsData[0]);
+            }
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [user]);
+    }, [user, selectedConversation]);
 
     const handleDragEnd = async (event) => {
         const { active, over } = event;
@@ -117,14 +126,23 @@ export default function LeadsPage() {
                             {columns.map(columnId => (
                                 <KanbanColumn key={columnId} id={columnId} title={columnId}
                                     leads={leads.filter(lead => lead.status === columnId)}
-                                    onCardClick={(lead) => setSelectedLead(lead)} />
+                                    onCardClick={(lead) => setSelectedLeadModal(lead)} />
                             ))}
                         </div>
                     </DndContext>
                 )}
-                {activeView === 'inbox' && ( <div className="inbox-placeholder"><p>Inbox view with all conversation history is coming soon.</p></div> )}
+                {activeView === 'inbox' && (
+                    <div className="inbox-view">
+                        <ConversationList 
+                            leads={leads} 
+                            selectedLead={selectedConversation} 
+                            onSelectLead={setSelectedConversation} 
+                        />
+                        <ChatView lead={selectedConversation} />
+                    </div>
+                )}
             </div>
-            <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
+            <LeadDetailModal lead={selectedLeadModal} onClose={() => setSelectedLeadModal(null)} />
         </div>
     );
 }

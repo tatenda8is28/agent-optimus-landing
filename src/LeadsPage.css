@@ -1,67 +1,48 @@
 /* src/LeadsPage.css */
 .page-title-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
 .page-title-header h1 { font-size: 28px; margin: 0; color: var(--ink); }
-
+.build-agent-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 32px; flex-wrap: wrap; }
+.build-agent-tabs button { background: none; border: none; padding: 12px 20px; font-weight: 600; cursor: pointer; color: var(--ink-light); border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 8px; }
+.build-agent-tabs button.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-content-wrapper { padding-top: 0; }
 .kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; width: 100%; }
 .kanban-column { background-color: transparent; border-radius: 12px; }
 .kanban-column-title { font-size: 16px; font-weight: 600; padding: 0 8px 16px; border-bottom: 2px solid var(--border-color); margin: 0 0 16px; }
 .kanban-column-title span { color: var(--ink-light); font-weight: 500; }
 .kanban-column-body { display: flex; flex-direction: column; gap: 16px; min-height: 200px; }
-
-/* --- NEW INTUITIVE CARD STYLES --- */
 .lead-card-wrapper { touch-action: none; }
-.lead-card {
-    background-color: var(--bg-white);
-    border: 1px solid var(--border-color);
-    padding: 16px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    cursor: grab;
-    transition: all 0.2s ease;
-}
+.lead-card { background-color: var(--bg-white); border: 1px solid var(--border-color); padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; transition: all 0.2s ease; }
 .lead-card:hover { border-color: var(--green); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-.lead-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-}
+.lead-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 .lead-name { margin: 0; font-weight: 600; color: var(--ink); }
 .lead-timestamp { font-size: 12px; color: var(--ink-light); flex-shrink: 0; margin-left: 8px; }
-
-.lead-details {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    border-top: 1px solid var(--border-color);
-    padding-top: 12px;
-}
-.lead-detail-item {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-}
-.detail-label {
-    color: var(--ink-light);
-}
-.detail-value {
-    color: var(--ink);
-    font-weight: 500;
-    text-align: right;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* --- Modal Styles (from previous step) --- */
+.lead-details { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px; }
+.lead-detail-item { display: flex; justify-content: space-between; font-size: 13px; }
+.detail-label { color: var(--ink-light); }
+.detail-value { color: var(--ink); font-weight: 500; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-view { display: grid; grid-template-columns: 320px 1fr; height: 70vh; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+.conversation-list { display: flex; flex-direction: column; border-right: 1px solid var(--border-color); }
+.inbox-header { padding: 16px; border-bottom: 1px solid var(--border-color); }
+.inbox-search { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; }
+.conversation-items { flex-grow: 1; overflow-y: auto; }
+.conversation-item { padding: 16px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+.conversation-item:hover { background-color: var(--bg-light); }
+.conversation-item.active { background-color: var(--green-light); border-right: 3px solid var(--green); }
+.item-name { margin: 0 0 4px; font-weight: 600; color: var(--ink); }
+.item-snippet { margin: 0; font-size: 14px; color: var(--ink-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-timestamp { font-size: 12px; color: var(--ink-light); float: right; }
+.chat-view { display: flex; flex-direction: column; }
+.chat-view-header { padding: 16px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+.chat-view-header h3 { margin: 0; font-size: 18px; }
+.chat-view-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--ink-light); }
 .lead-modal { max-width: 900px !important; }
 .lead-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
 .lead-profile-section h2, .conversation-log-section h2 { font-size: 20px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;}
 .lead-profile-section p { font-size: 14px; margin: 0 0 10px; }
 .lead-profile-section p strong { color: var(--ink-light); }
 .lead-profile-section hr { border: none; border-top: 1px solid var(--border-color); margin: 16px 0; }
-.conversation-log { background-color: var(--bg-light); border-radius: 8px; padding: 16px; height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-.chat-bubble { padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 14px; line-height: 1.5; }
+.conversation-log { background-color: var(--bg-light); border-radius: 8px; padding: 16px; height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.chat-bubble { padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
 .chat-bubble.user { background-color: var(--bg-white); border: 1px solid var(--border-color); align-self: flex-start; }
 .chat-bubble.assistant { background-color: var(--green-light); color: var(--green-dark); align-self: flex-end; }
 .chat-timestamp { display: block; font-size: 10px; color: var(--ink-light); margin-top: 4px; text-align: right; }
