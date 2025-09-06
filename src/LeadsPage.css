@@ -10,7 +10,7 @@
 .pipeline-controls { display: flex; gap: 16px; margin-bottom: 24px; }
 .table-wrapper { overflow-x: auto; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; }
 .leads-table { width: 100%; border-collapse: collapse; }
-.leads-table th, .leads-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); }
+.leads-table th, .leads-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
 .leads-table th { font-size: 12px; color: var(--ink-light); text-transform: uppercase; }
 .leads-table tbody tr { cursor: pointer; transition: background-color 0.2s ease; }
 .leads-table tbody tr:hover { background-color: var(--bg-light); }
@@ -20,7 +20,8 @@
 .preference-cell { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-pill { padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; text-align: center; }
 .status-New-Inquiry { background-color: #eff6ff; color: #1d4ed8; }
-.status-Contacted { background-color: #fffbeb; color: #b45309; }
+.status-Contacted { background-color: #fefce8; color: #a16207; }
+.status-Viewing-Booked { background-color: #ecfdf5; color: #065f46; }
 
 /* --- Inbox View --- */
 .inbox-view { display: grid; grid-template-columns: 320px 1fr; height: 70vh; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
@@ -50,3 +51,17 @@
 .chat-bubble.user { background-color: var(--bg-white); border: 1px solid var(--border-color); align-self: flex-start; }
 .chat-bubble.assistant { background-color: var(--green-light); color: var(--green-dark); align-self: flex-end; }
 .chat-timestamp { display: block; font-size: 10px; color: var(--ink-light); margin-top: 4px; text-align: right; }
+
+/* --- Responsive Styles --- */
+.mobile-card-list { display: none; }
+.lead-row-card { background: var(--bg-white); border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+.back-to-list-btn { display: none; position: absolute; top: 16px; left: 16px; background: var(--bg-light); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 8px; font-weight: 600; }
+@media (max-width: 800px) {
+    .table-wrapper { display: none; }
+    .mobile-card-list { display: block; }
+    .inbox-view { grid-template-columns: 1fr; position: relative; overflow: hidden; }
+    .inbox-list-pane { display: flex; flex-direction: column; }
+    .inbox-chat-pane { position: absolute; top: 0; left: 0; right: 0; bottom: 0; transform: translateX(100%); transition: transform 0.3s ease; background: var(--bg-white); }
+    .inbox-view.show-chat .inbox-chat-pane { transform: translateX(0); }
+    .back-to-list-btn { display: block; }
+}
