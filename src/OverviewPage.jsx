@@ -1,48 +1,59 @@
 // src/OverviewPage.jsx
+import { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { db } from './firebaseClient';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 import MetricCard from './MetricCard.jsx';
+import { SetupGuide } from './components/SetupGuide.jsx';
+import { BotStatus } from './components/BotStatus.jsx';
 import './OverviewPage.css';
 
-const SetupGuideItem = ({ text, status, linkTo }) => {
-    const getIcon = () => {
-        if (status === 'complete') return '✔️';
-        if (status === 'pending') return '⏳';
-        return '➡️';
-    };
-    return (
-        <a href={linkTo} className={`setup-guide-item ${status}`}>
-            <span className="setup-guide-icon">{getIcon()}</span>
-            <span className="setup-guide-text">{text}</span>
-        </a>
-    );
-};
-
 export default function OverviewPage() {
-    const isSetupComplete = false;
+    const { user, userProfile } = useAuth();
+    const [botStatus, setBotStatus] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // The header is now removed from here and handled by the layout
+    // This is a simplified check for onboarding completion
+    const isSetupComplete = userProfile?.companyName && userProfile?.knowledgeDocument;
+
+    useEffect(() => {
+        if (!user) return;
+        
+        // Listener for the bot's live status
+        const statusRef = doc(db, 'bot_status', user.uid);
+        const unsubscribe = onSnapshot(statusRef, (doc) => {
+            if (doc.exists()) {
+                setBotStatus(doc.data());
+            }
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [user]);
+    
+    if (isLoading || !userProfile) {
+        return <div style={{padding: '40px'}}>Loading Overview...</div>
+    }
+
     return (
         <div>
-            {/* The Setup Guide is now the first thing */}
-            {!isSetupComplete && (
-                <div className="setup-guide-container">
-                    <div className="setup-guide-header">
-                        <h2>Your Agent is 60% Ready!</h2>
-                        <p>Complete the following steps to unlock the full power of Agent Optimus.</p>
-                    </div>
-                    <div className="setup-guide-checklist">
-                        <SetupGuideItem text="Account Created" status="complete" linkTo="#" />
-                        <SetupGuideItem text="Complete Company Info" status="pending" linkTo="/company-info" />
-                        <SetupGuideItem text="Train Your AI Agent" status="todo" linkTo="/build" />
-                    </div>
-                </div>
-            )}
+            <div className="page-title-header">
+                <h1>Overview</h1>
+            </div>
 
+            {/* --- INTELLIGENT ONBOARDING --- */}
+            {isSetupComplete ? (
+                <BotStatus status={botStatus} />
+            ) : (
+                <SetupGuide userProfile={userProfile} />
+            )}
+            
             <div className="metrics-grid" style={{marginTop: '32px'}}>
-                <MetricCard title="Total Leads Captured" value={0} isLoading={false} />
-                <MetricCard title="Viewings Booked" value={0} isLoading={false} />
-                <MetricCard title="Avg. Response Time" value="<10s" isLoading={false} />
-                <MetricCard title="Conversations Today" value={0} isLoading={false} />
+                <MetricCard title="🔥 Total Leads Captured" value={0} />
+                <MetricCard title="📅 Viewings Booked" value={0} />
+                <MetricCard title="💡 General Inquiries" value={0} />
+                <MetricCard title="💬 Conversations Today" value={0} />
             </div>
         </div>
     );
