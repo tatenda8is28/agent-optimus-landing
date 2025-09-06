@@ -9,11 +9,19 @@ import './LeadsPage.css';
 
 const LeadDetailModal = ({ lead, onClose }) => {
     if (!lead) return null;
+    const [activeMobileTab, setActiveMobileTab] = useState('profile');
+
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content lead-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="modal-close-btn" onClick={onClose}>&times;</button>
-                <div className="lead-modal-grid">
+                
+                <div className="mobile-modal-tabs">
+                    <button onClick={() => setActiveMobileTab('profile')} className={activeMobileTab === 'profile' ? 'active' : ''}>Profile</button>
+                    <button onClick={() => setActiveMobileTab('conversation')} className={activeMobileTab === 'conversation' ? 'active' : ''}>Conversation</button>
+                </div>
+
+                <div className={`lead-modal-grid mobile-view-${activeMobileTab}`}>
                     <div className="lead-profile-section">
                         <h2>Lead Profile</h2>
                         <p><strong>Name:</strong> {lead.name}</p>
@@ -52,9 +60,7 @@ const PipelineView = ({ leads, onSelectLead }) => {
             const matchesStatus = statusFilter === 'All' || lead.status === statusFilter;
             const matchesSearch = searchTerm === '' || 
                 lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                lead.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                lead.preferences?.toLowerCase().includes(searchTerm.toLowerCase());
+                lead.contact?.toLowerCase().includes(searchTerm.toLowerCase());
             return matchesStatus && matchesSearch;
         });
     }, [leads, searchTerm, statusFilter]);
@@ -62,13 +68,7 @@ const PipelineView = ({ leads, onSelectLead }) => {
     return (
         <div className="pipeline-view">
             <div className="pipeline-controls">
-                <input 
-                    type="text" 
-                    placeholder="Search leads..." 
-                    className="filter-search-input"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <input type="text" placeholder="Search leads..." className="filter-search-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                     <option value="All">All Statuses</option>
                     <option value="New Inquiry">New Inquiry</option>
@@ -77,25 +77,13 @@ const PipelineView = ({ leads, onSelectLead }) => {
             </div>
             <div className="table-wrapper">
                 <table className="leads-table">
-                    <thead>
-                        <tr>
-                            <th>Lead</th>
-                            <th>Status</th>
-                            <th>Last Contact</th>
-                            <th>Timeline</th>
-                            <th>Finance</th>
-                            <th>Preference</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Lead</th><th>Status</th><th>Last Contact</th><th>Timeline</th><th>Finance</th><th>Preference</th></tr></thead>
                     <tbody>
                         {filteredLeads.map(lead => (
                             <tr key={lead.id} onClick={() => onSelectLead(lead)}>
-                                <td>
-                                    <div className="lead-name-cell">{lead.name}</div>
-                                    <div className="lead-contact-cell">{lead.contact}</div>
-                                </td>
+                                <td><div className="lead-name-cell">{lead.name}</div><div className="lead-contact-cell">{lead.contact}</div></td>
                                 <td><span className={`status-pill status-${lead.status?.replace(' ', '-')}`}>{lead.status}</span></td>
-                                <td>{lead.lastContactAt?.toDate().toLocaleString()}</td>
+                                <td>{lead.lastContactAt?.toDate().toLocaleDateString()}</td>
                                 <td>{lead.timeline || '--'}</td>
                                 <td>{lead.financial_position || '--'}</td>
                                 <td className="preference-cell">{lead.preferences || '--'}</td>
