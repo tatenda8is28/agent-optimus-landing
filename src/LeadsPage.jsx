@@ -5,56 +5,13 @@ import { db } from './firebaseClient';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import './LeadsPage.css';
 
-// --- Reusable Components ---
-
-const LeadDetailModal = ({ lead, onClose }) => {
-    if (!lead) return null;
-    const [activeMobileTab, setActiveMobileTab] = useState('profile');
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content lead-modal" onClick={(e) => e.stopPropagation()}>
-                <button className="modal-close-btn" onClick={onClose}>&times;</button>
-                
-                <div className="mobile-modal-tabs">
-                    <button onClick={() => setActiveMobileTab('profile')} className={activeMobileTab === 'profile' ? 'active' : ''}>Profile</button>
-                    <button onClick={() => setActiveMobileTab('conversation')} className={activeMobileTab === 'conversation' ? 'active' : ''}>Conversation</button>
-                </div>
-
-                <div className={`lead-modal-grid mobile-view-${activeMobileTab}`}>
-                    <div className="lead-profile-section">
-                        <h2>Lead Profile</h2>
-                        <p><strong>Name:</strong> {lead.name}</p>
-                        <p><strong>Contact:</strong> {lead.contact}</p>
-                        <p><strong>Email:</strong> {lead.email || 'N/A'}</p>
-                        <hr /><h3>Initial Inquiry</h3>
-                        <p><strong>Property URL:</strong> <a href={lead.propertyUrl} target="_blank" rel="noopener noreferrer">View Listing</a></p>
-                        <hr /><h3>Qualification</h3>
-                        <p><strong>Timeline:</strong> {lead.timeline || 'N/A'}</p>
-                        <p><strong>Finance:</strong> {lead.financial_position || 'N/A'}</p>
-                        <p><strong>Preferences:</strong> {lead.preferences || 'N/A'}</p>
-                    </div>
-                    <div className="conversation-log-section">
-                        <h2>Conversation Log</h2>
-                        <div className="conversation-log">
-                            {lead.conversation?.map((msg, index) => (
-                                <div key={index} className={`chat-bubble ${msg.role}`}>
-                                    {msg.content}
-                                    <span className="chat-timestamp">{msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
+const LeadDetailModal = ({ lead, onClose }) => { /* ... */ };
+const InboxView = ({ leads }) => { /* ... */ };
+const ChatView = ({ lead }) => { /* ... */ };
 
 const PipelineView = ({ leads, onSelectLead }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-
     const filteredLeads = useMemo(() => {
         return leads.filter(lead => {
             const matchesStatus = statusFilter === 'All' || lead.status === statusFilter;
@@ -77,16 +34,32 @@ const PipelineView = ({ leads, onSelectLead }) => {
             </div>
             <div className="table-wrapper">
                 <table className="leads-table">
-                    <thead><tr><th>Lead</th><th>Status</th><th>Last Contact</th><th>Timeline</th><th>Finance</th><th>Preference</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Status</th>
+                            <th>Last Contact</th>
+                            <th>Intel</th>
+                            <th>Finance</th>
+                            <th>Timeline</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {filteredLeads.map(lead => (
                             <tr key={lead.id} onClick={() => onSelectLead(lead)}>
-                                <td><div className="lead-name-cell">{lead.name}</div><div className="lead-contact-cell">{lead.contact}</div></td>
+                                <td>
+                                    <div className="lead-name-cell">{lead.name}</div>
+                                    <div className="lead-contact-cell">{lead.contact}</div>
+                                </td>
                                 <td><span className={`status-pill status-${lead.status?.replace(' ', '-')}`}>{lead.status}</span></td>
                                 <td>{lead.lastContactAt?.toDate().toLocaleDateString()}</td>
-                                <td>{lead.timeline || '--'}</td>
+                                <td className="intel-cell">
+                                    {lead.intelTags?.map(tag => (
+                                        <span key={tag} className="intel-tag">{tag}</span>
+                                    ))}
+                                </td>
                                 <td>{lead.financial_position || '--'}</td>
-                                <td className="preference-cell">{lead.preferences || '--'}</td>
+                                <td>{lead.timeline || '--'}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -103,57 +76,17 @@ const PipelineView = ({ leads, onSelectLead }) => {
                             <div className="lead-detail-item"><span>Finance</span><span>{lead.financial_position || '--'}</span></div>
                             <div className="lead-detail-item"><span>Timeline</span><span>{lead.timeline || '--'}</span></div>
                         </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const InboxView = ({ leads }) => {
-    const [selectedLead, setSelectedLead] = useState(null);
-    useEffect(() => {
-        if (leads.length > 0 && !selectedLead) { setSelectedLead(leads[0]); }
-    }, [leads, selectedLead]);
-
-    return (
-        <div className={`inbox-view ${selectedLead ? 'show-chat' : ''}`}>
-            <div className="inbox-list-pane">
-                <div className="inbox-header"><input type="text" placeholder="Search conversations..." className="inbox-search" /></div>
-                <div className="conversation-items">
-                    {leads.map(lead => (
-                        <div key={lead.id} className={`conversation-item ${selectedLead?.id === lead.id ? 'active' : ''}`} onClick={() => setSelectedLead(lead)}>
-                            <p className="item-name">{lead.name || lead.contact}</p>
-                            <p className="item-snippet">{lead.conversation?.slice(-1)[0]?.content.substring(0, 40)}...</p>
+                        <div className="intel-tags-mobile">
+                            {lead.intelTags?.map(tag => (
+                                <span key={tag} className="intel-tag">{tag}</span>
+                            ))}
                         </div>
-                    ))}
-                </div>
-            </div>
-            <div className="inbox-chat-pane">
-                {selectedLead && <button className="back-to-list-btn" onClick={() => setSelectedLead(null)}>← Back</button>}
-                <ChatView lead={selectedLead} />
-            </div>
-        </div>
-    );
-};
-
-const ChatView = ({ lead }) => {
-    if (!lead) { return <div className="chat-view-placeholder"><p>Select a conversation from the left.</p></div>; }
-    return (
-        <div className="chat-view">
-            <div className="chat-view-header"><h3>Conversation with {lead.name}</h3></div>
-            <div className="conversation-log">
-                {lead.conversation?.map((msg, index) => (
-                    <div key={index} className={`chat-bubble ${msg.role}`}>
-                        {msg.content}
-                        <span className="chat-timestamp">{msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
                 ))}
             </div>
         </div>
     );
 };
-
 
 export default function LeadsPage() {
     const { user } = useAuth();

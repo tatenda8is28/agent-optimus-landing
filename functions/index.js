@@ -1,4 +1,4 @@
-// functions/index.js (FINAL, CORRECTED VERSION)
+// functions/index.js (FINAL, FULL VERSION)
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
@@ -9,19 +9,14 @@ const { logger } = require("firebase-functions");
 admin.initializeApp();
 const firestore = admin.firestore();
 
-// --- activateUserTrial function (no changes) ---
 exports.activateUserTrial = onCall(async (request) => {
     if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
     const callerUid = request.auth.uid;
     const targetUserId = request.data.userId;
     try {
         const callerDoc = await firestore.collection('users').doc(callerUid).get();
-        if (!callerDoc.exists || callerDoc.data().role !== 'admin') {
-            throw new HttpsError('permission-denied', 'This function can only be called by an admin.');
-        }
-        if (!targetUserId) {
-            throw new HttpsError('invalid-argument', 'Missing "userId" argument.');
-        }
+        if (!callerDoc.exists || callerDoc.data().role !== 'admin') { throw new HttpsError('permission-denied', 'This function can only be called by an admin.'); }
+        if (!targetUserId) { throw new HttpsError('invalid-argument', 'Missing "userId" argument.'); }
         const userDocRef = firestore.collection('users').doc(targetUserId);
         await userDocRef.update({ status: 'ACTIVE_TRIAL' });
         logger.log(`Successfully activated user: ${targetUserId}`);
@@ -33,74 +28,43 @@ exports.activateUserTrial = onCall(async (request) => {
     }
 });
 
-// --- Internal helper function to process the CSV data ---
 async function processCSV(filePath, agentId) {
     const bucket = admin.storage().bucket();
     const file = bucket.file(filePath);
     logger.log(`Processing CSV for agent ${agentId}: ${filePath}`);
-    
-    const parser = file.createReadStream().pipe(parse({
-        delimiter: ';',
-        columns: header => header.map(h => h.trim().toLowerCase().replace(/ /g, '_').replace('﻿', '')),
-        skip_empty_lines: true,
-    }));
-
+    const parser = file.createReadStream().pipe(parse({ delimiter: ';', columns: header => header.map(h => h.trim().toLowerCase().replace(/ /g, '_').replace('﻿', '')), skip_empty_lines: true }));
     const writeBatch = firestore.batch();
     let recordCount = 0;
-
     for await (const record of parser) {
         try {
-            // Use the header from your CSV: 'property_url'
             if (!record.property_url) continue;
-
             const docId = Buffer.from(record.property_url).toString('base64');
             const docRef = firestore.collection('properties').doc(docId);
-            
-            // --- THIS SECTION IS NOW CORRECTED TO MATCH YOUR CSV HEADERS ---
             const priceNum = parseInt(record.price?.replace(/[^0-9]/g, '')) || 0;
-            
             const newPropertyData = {
-                agentId: agentId,
-                propertyUrl: record.property_url || '',
-                imageUrl: record.image_url || '',
-                price: priceNum,
-                title: record.title || '',
-                address: record.suburb || '', // Using 'suburb' for the main address field
-                suburb: record.suburb || '',
-                suburb_lowercase: (record.suburb || '').toLowerCase(),
-                description: record.description || '',
-                bedrooms: parseInt(record.bedroom) || null,    // Corrected to 'bedroom'
-                bathrooms: parseFloat(record.bath) || null,     // Corrected to 'bath'
-                garages: parseInt(record.garage) || null,     // Corrected to 'garage'
-                size: record.p24_size || '',                  // Corrected to 'p24_size'
-                source: "Property24",
-                status: 'Active',
-                isAiEnabled: true,
-                createdAt: new Date(),
-                lastEditedBy: 'importer'
+                agentId: agentId, propertyUrl: record.property_url || '', imageUrl: record.image_url || '',
+                price: priceNum, title: record.title || '', address: record.suburb || '', suburb: record.suburb || '',
+                description: record.description || '', bedrooms: parseInt(record.bedroom) || null, bathrooms: parseFloat(record.bath) || null,
+                garages: parseInt(record.garage) || null, size: record.p24_size || '', source: "Property24",
+                status: 'Active', isAiEnabled: true, createdAt: new Date(), lastEditedBy: 'importer'
             };
-            
             writeBatch.set(docRef, newPropertyData, { merge: true });
             recordCount++;
         } catch(e) { logger.error("Error processing record:", record, e); }
     }
-    
     await writeBatch.commit();
     logger.log(`Successfully processed ${recordCount} properties for agent ${agentId}.`);
     return file.delete();
 }
 
-// --- uploadPropertyCSV function that the frontend calls (no changes) ---
 exports.uploadPropertyCSV = onCall(async (request) => {
     if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
     const agentId = request.auth.uid;
     const { fileContent, fileName } = request.data;
     if (!fileContent || !fileName) { throw new HttpsError('invalid-argument', 'Missing file content or name.'); }
-
     const bucket = admin.storage().bucket();
     const filePath = `property-uploads/${agentId}/${Date.now()}-${fileName}`;
     const file = bucket.file(filePath);
-
     try {
         const buffer = Buffer.from(fileContent, 'base64');
         await file.save(buffer, { contentType: 'text/csv' });
@@ -112,3 +76,26 @@ exports.uploadPropertyCSV = onCall(async (request) => {
         throw new HttpsError('internal', 'Failed to upload and process file.');
     }
 });
+
+exports.analyzeLeadConversation = functions.firestore
+    .document('leads/{leadId}')
+    .onUpdate(async (change, context) => {
+        const newData = change.after.data();
+        const previousData = change.before.data();
+        const leadId = context.params.leadId;
+        if (!newData.conversation || newData.conversation.length === (previousData.conversation?.length || 0)) {
+            return null;
+        }
+        logger.log(`[Intel] Analyzing new messages for lead ${leadId}...`);
+        const conversationText = newData.conversation.map(msg => msg.content).join(' ').toLowerCase();
+        const intelTags = new Set(newData.intelTags || []);
+        if (conversationText.includes('cash')) { intelTags.add('💰 Cash Buyer'); }
+        if (conversationText.includes('bond') || conversationText.includes('pre-approved')) { intelTags.add('💳 Bond Applicant'); }
+        if (conversationText.includes('asap') || conversationText.includes('urgent') || conversationText.includes('soon')) { intelTags.add('🔥 Hot Lead'); }
+        const newTagsArray = Array.from(intelTags);
+        if (newTagsArray.length > (newData.intelTags?.length || 0)) {
+            logger.log(`[Intel] Adding new tags for lead ${leadId}:`, newTagsArray);
+            return change.after.ref.update({ intelTags: newTagsArray });
+        }
+        return null;
+    });
