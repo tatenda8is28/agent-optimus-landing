@@ -3,6 +3,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { parse } = require("csv-parse");
+const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { HttpsError, onCall } = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
 
@@ -77,25 +78,23 @@ exports.uploadPropertyCSV = onCall(async (request) => {
     }
 });
 
-exports.analyzeLeadConversation = functions.firestore
-    .document('leads/{leadId}')
-    .onUpdate(async (change, context) => {
-        const newData = change.after.data();
-        const previousData = change.before.data();
-        const leadId = context.params.leadId;
-        if (!newData.conversation || newData.conversation.length === (previousData.conversation?.length || 0)) {
-            return null;
-        }
-        logger.log(`[Intel] Analyzing new messages for lead ${leadId}...`);
-        const conversationText = newData.conversation.map(msg => msg.content).join(' ').toLowerCase();
-        const intelTags = new Set(newData.intelTags || []);
-        if (conversationText.includes('cash')) { intelTags.add('💰 Cash Buyer'); }
-        if (conversationText.includes('bond') || conversationText.includes('pre-approved')) { intelTags.add('💳 Bond Applicant'); }
-        if (conversationText.includes('asap') || conversationText.includes('urgent') || conversationText.includes('soon')) { intelTags.add('🔥 Hot Lead'); }
-        const newTagsArray = Array.from(intelTags);
-        if (newTagsArray.length > (newData.intelTags?.length || 0)) {
-            logger.log(`[Intel] Adding new tags for lead ${leadId}:`, newTagsArray);
-            return change.after.ref.update({ intelTags: newTagsArray });
-        }
+exports.analyzeLeadConversation = onDocumentUpdated("leads/{leadId}", async (event) => {
+    const newData = event.data.after.data();
+    const previousData = event.data.before.data();
+    const leadId = event.params.leadId;
+    if (!newData.conversation || newData.conversation.length === (previousData.conversation?.length || 0)) {
         return null;
-    });
+    }
+    logger.log(`[Intel] Analyzing new messages for lead ${leadId}...`);
+    const conversationText = newData.conversation.map(msg => msg.content).join(' ').toLowerCase();
+    const intelTags = new Set(newData.intelTags || []);
+    if (conversationText.includes('cash')) { intelTags.add('💰 Cash Buyer'); }
+    if (conversationText.includes('bond') || conversationText.includes('pre-approved')) { intelTags.add('💳 Bond Applicant'); }
+    if (conversationText.includes('asap') || conversationText.includes('urgent') || conversationText.includes('soon')) { intelTags.add('🔥 Hot Lead'); }
+    const newTagsArray = Array.from(intelTags);
+    if (newTagsArray.length > (newData.intelTags?.length || 0)) {
+        logger.log(`[Intel] Adding new tags for lead ${leadId}:`, newTagsArray);
+        return event.data.after.ref.update({ intelTags: newTagsArray });
+    }
+    return null;
+});
