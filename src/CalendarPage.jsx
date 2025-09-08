@@ -1,7 +1,8 @@
-// src/CalendarPage.jsx (FINAL, UNIFIED CALENDAR VERSION)
+// src/CalendarPage.jsx (FINAL, FULLY INTERACTIVE VERSION)
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { db } from './firebaseClient';
+import { db, functions } from './firebaseClient';
+import { httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
@@ -11,7 +12,6 @@ import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-
 import './CalendarPage.css';
 
 const locales = { 'en-US': enUS };
@@ -23,22 +23,16 @@ export default function CalendarPage() {
     const { user } = useAuth();
     const [events, setEvents] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
-    // --- NEW STATE FOR THE MODAL ---
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newEvent, setNewEvent] = useState({ title: '', start: new Date(), end: new Date() });
+    const [modalState, setModalState] = useState({ isOpen: false, data: null, type: null });
 
     useEffect(() => {
         if (!user) { setIsLoading(false); return; }
-        setIsLoading(true);
         const bookingsQuery = query(collection(db, 'bookings'), where('agentId', '==', user.uid));
         const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
             const bookingsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                title: doc.data().title,
-                start: doc.data().start.toDate(),
-                end: doc.data().end.toDate(),
-                type: doc.data().type || 'ai_booking' // Differentiate event types
+                id: doc.id, title: doc.data().title,
+                start: doc.data().start.toDate(), end: doc.data().end.toDate(),
+                type: doc.data().type || 'ai_booking'
             }));
             setEvents(bookingsData);
             setIsLoading(false);
@@ -46,88 +40,76 @@ export default function CalendarPage() {
         return () => unsubscribe();
     }, [user]);
     
-    // --- NEW HANDLER FOR SELECTING SLOTS ---
     const handleSelectSlot = useCallback(({ start, end }) => {
-        setNewEvent({ title: '', start, end });
-        setIsModalOpen(true);
+        setModalState({ isOpen: true, type: 'create', data: { title: '', start, end } });
+    }, []);
+    
+    const handleSelectEvent = useCallback((event) => {
+        setModalState({ isOpen: true, type: 'view', data: event });
     }, []);
 
-    // --- NEW HANDLER FOR SAVING MANUAL EVENTS ---
     const handleSaveEvent = async () => {
-        if (!user || !newEvent.title) {
-            alert("A title is required to block out time.");
-            return;
-        }
+        const { title, start, end } = modalState.data;
+        if (!user || !title) { alert("A title is required."); return; }
         try {
             await addDoc(collection(db, 'bookings'), {
-                agentId: user.uid,
-                title: newEvent.title,
-                start: newEvent.start,
-                end: newEvent.end,
-                type: 'manual_block', // Mark as a manual event
-                createdAt: serverTimestamp()
+                agentId: user.uid, title: title, start: start, end: end,
+                type: 'manual_block', createdAt: serverTimestamp()
             });
-            setIsModalOpen(false);
-        } catch (error) {
-            console.error("Error creating manual event:", error);
-            alert("Failed to save event.");
-        }
+            setModalState({ isOpen: false, data: null, type: null });
+        } catch (error) { console.error("Error creating manual event:", error); alert("Failed to save event."); }
+    };
+    
+    const handleDeleteEvent = async () => {
+        const { id } = modalState.data;
+        if (!window.confirm("Are you sure you want to delete this event?")) return;
+        try {
+            const deleteBookingFunc = httpsCallable(functions, 'deleteBooking');
+            await deleteBookingFunc({ bookingId: id });
+            setModalState({ isOpen: false, data: null, type: null });
+        } catch (error) { console.error("Error deleting event:", error); alert(`Failed to delete event: ${error.message}`); }
     };
 
-    // --- NEW STYLING LOGIC ---
     const eventStyleGetter = (event) => {
         const style = {
-            backgroundColor: event.type === 'manual_block' ? '#64748b' : 'var(--green)', // Grey for manual, Green for AI
+            backgroundColor: event.type === 'manual_block' ? '#64748b' : 'var(--green)',
             borderColor: event.type === 'manual_block' ? '#475569' : 'var(--green-dark)',
         };
         return { style };
     };
 
-    if (isLoading) {
-        return <div style={{padding: '40px'}}>Loading Calendar...</div>;
-    }
+    if (isLoading) { return <div style={{padding: '40px'}}>Loading Calendar...</div>; }
 
     return (
         <div>
-            <div className="page-title-header">
-                <h1>My Calendar</h1>
-                <p className="page-subtitle-alt">Click & drag on the calendar to block out time.</p>
-            </div>
-
+            <div className="page-title-header"><h1>My Calendar</h1><p className="page-subtitle-alt">Click & drag on the calendar to block out time.</p></div>
             <div className="calendar-container">
-                <Calendar
-                    localizer={localizer}
-                    events={events}
-                    startAccessor="start"
-                    endAccessor="end"
-                    defaultView="month"
-                    style={{ height: 700 }}
-                    selectable // <-- Enable click and drag
-                    onSelectSlot={handleSelectSlot}
-                    eventPropGetter={eventStyleGetter}
-                />
+                <Calendar localizer={localizer} events={events} startAccessor="start" endAccessor="end"
+                    defaultView="month" style={{ height: 700 }} selectable
+                    onSelectSlot={handleSelectSlot} onSelectEvent={handleSelectEvent} eventPropGetter={eventStyleGetter} />
             </div>
 
-            {isModalOpen && (
-                <Modal onClose={() => setIsModalOpen(false)}>
-                    <h2>Block Out Time</h2>
-                    <div className="wizard-form-group">
-                        <label>Event Title</label>
-                        <input 
-                            type="text" 
-                            placeholder="e.g., Personal Appointment"
-                            value={newEvent.title}
-                            onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                        />
-                    </div>
-                    <p className="time-display">
-                        From: {format(newEvent.start, 'PPP p')} <br/>
-                        To: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{format(newEvent.end, 'PPP p')}
-                    </p>
-                    <div className="modal-actions">
-                        <button className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                        <button className="btn btn-primary" onClick={handleSaveEvent}>Save Event</button>
-                    </div>
+            {modalState.isOpen && (
+                <Modal onClose={() => setModalState({ isOpen: false, data: null, type: null })}>
+                    {modalState.type === 'create' && (
+                        <>
+                            <h2>Block Out Time</h2>
+                            <div className="wizard-form-group"><label>Event Title</label><input type="text" value={modalState.data.title} onChange={(e) => setModalState({...modalState, data: {...modalState.data, title: e.target.value}})} /></div>
+                            <p className="time-display">From: {format(modalState.data.start, 'PPP p')}<br/>To: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{format(modalState.data.end, 'PPP p')}</p>
+                            <div className="modal-actions"><button className="btn btn-outline" onClick={() => setModalState({ isOpen: false, data: null, type: null })}>Cancel</button><button className="btn btn-primary" onClick={handleSaveEvent}>Save Event</button></div>
+                        </>
+                    )}
+                    {modalState.type === 'view' && (
+                        <>
+                            <h2>Event Details</h2>
+                            <h3>{modalState.data.title}</h3>
+                            <p className="time-display">From: {format(modalState.data.start, 'PPP p')}<br/>To: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{format(modalState.data.end, 'PPP p')}</p>
+                            <div className="modal-actions">
+                                <button className="btn btn-outline danger-btn" onClick={handleDeleteEvent}>Delete Event</button>
+                                <button className="btn btn-primary" onClick={() => setModalState({ isOpen: false, data: null, type: null })}>Close</button>
+                            </div>
+                        </>
+                    )}
                 </Modal>
             )}
         </div>
