@@ -2,187 +2,149 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import './BuildAgentPage.css';
 
-const defaultPlaybook = {
-    greeting: "Hi [Buyer Name]! This is [Agent Name]'s AI assistant from [Company Name]. I see you're interested in the property at [Property Address]. Thank you for your interest! Would you like me to help arrange a viewing?",
-    booking_style: "MANUAL",
-    booking_manual_prompt: "Great! What day and time would work best for you to view the property?",
-    booking_manual_confirm: "Perfect, thank you. I've noted your preference. [Agent Name] will personally contact the seller to confirm and will be in touch with you shortly to finalize the appointment.",
-    qualification_steps: [
-        { id: 'timeline', enabled: true, question: "While that's being processed, could you let me know how soon you are looking to purchase? (e.g., Immediately, 1-3 months, 6+ months)" },
-        { id: 'finance', enabled: true, question: "Thank you. And to help us find the best options for you, will you be purchasing with cash, or with a bond/home loan?" }
-    ],
-    finance_handoff: {
-        enabled: false, specialist_name: "", specialist_email: "",
-        handoff_message: "No problem at all. Our finance specialist, [Specialist Name], can assist with that. I've sent them your details, and they will be in touch shortly to help with pre-approval."
-    },
-};
+const defaultFunnel = [
+    { id: 1, type: 'greeting', title: "Step 1: Greeting & Hook", text_yes: "Great! When would suit you best...", text_no: "No problem, may I ask..." },
+    { id: 2, type: 'qualification', title: "Step 2: Qualification", question: "How soon are you looking to purchase?" },
+    { id: 3, type: 'handoff', title: "Step 3: Finance Handoff", enabled: true, specialist_name: "Adel" }
+];
 
-const defaultKnowledgeBase = `Common Buyer Questions\n\nWhat are transfer costs?\nTransfer costs are fees paid to a conveyancing attorney...`;
-const defaultPersonality = { professionalism: 0.5, enthusiasm: 0.5 };
+// Reusable, Draggable Step Component
+const SortableStep = ({ step, index, onUpdate, onDelete }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id });
+    const style = { transform: CSS.Transform.toString(transform), transition };
 
-const AccordionSection = ({ title, children, isOpen, onClick }) => (
-    <div className={`accordion-section ${isOpen ? 'open' : ''}`}>
-        <h3 className="accordion-header" onClick={onClick}>{title}<span className="accordion-icon">{isOpen ? '−' : '+'}</span></h3>
-        {isOpen && <div className="accordion-content">{children}</div>}
-    </div>
-);
-
-export default function BuildAgentPage() {
-    const { user, userProfile } = useAuth();
-    const [activeTab, setActiveTab] = useState('playbook');
-    const [openAccordion, setOpenAccordion] = useState('greeting');
-    const [playbook, setPlaybook] = useState(defaultPlaybook);
-    const [knowledgeBase, setKnowledgeBase] = useState(defaultKnowledgeBase);
-    const [personality, setPersonality] = useState(defaultPersonality);
-    const [dncList, setDncList] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveMessage, setSaveMessage] = useState('');
-
-    useEffect(() => {
-        if (!user || !userProfile) return;
-        const fetchData = async () => {
-            setIsLoading(true);
-            const playbookRef = doc(db, 'sales_playbooks', user.uid);
-            const playbookSnap = await getDoc(playbookRef);
-            if (playbookSnap.exists()) { setPlaybook({ ...defaultPlaybook, ...playbookSnap.data() }); }
-            
-            if (userProfile.knowledgeDocument) setKnowledgeBase(userProfile.knowledgeDocument);
-            if (userProfile.personality) setPersonality(userProfile.personality);
-            if (userProfile.doNotContactList) setDncList(userProfile.doNotContactList.join('\n'));
-            setIsLoading(false);
-        };
-        fetchData();
-    }, [user, userProfile]);
-
-    const handlePlaybookChange = (e, index = null) => {
-        const { name, value, type, checked } = e.target;
-        if (name.startsWith("qualification_")) {
-            const field = name.split('_')[1];
-            const updatedSteps = playbook.qualification_steps.map((step, i) => i === index ? { ...step, [field]: type === 'checkbox' ? checked : value } : step);
-            setPlaybook(prev => ({ ...prev, qualification_steps: updatedSteps }));
-        } else if (name.startsWith("handoff_")) {
-            const key = name.split('_')[1];
-            setPlaybook(prev => ({ ...prev, finance_handoff: { ...prev.finance_handoff, [key]: type === 'checkbox' ? checked : value }}));
-        } else {
-            setPlaybook(prev => ({ ...prev, [name]: value }));
+    const renderContent = () => {
+        switch(step.type) {
+            case 'greeting': return (
+                <div><label>If Interested:</label><textarea value={step.text_yes} onChange={(e) => onUpdate(index, 'text_yes', e.target.value)} /></div>
+            );
+            case 'qualification': return (
+                <div><label>Question:</label><textarea value={step.question} onChange={(e) => onUpdate(index, 'question', e.target.value)} /></div>
+            );
+            case 'handoff': return (
+                <div><label>Specialist Name:</label><input type="text" value={step.specialist_name} onChange={(e) => onUpdate(index, 'specialist_name', e.target.value)} /></div>
+            );
+            default: return null;
         }
     };
-    const handlePersonalityChange = (e) => setPersonality(prev => ({ ...prev, [e.target.name]: parseFloat(e.target.value) }));
+
+    return (
+        <div ref={setNodeRef} style={style} className="funnel-step-card">
+            <div className="funnel-step-header">
+                <span className="drag-handle" {...attributes} {...listeners}>☰</span>
+                <strong className="step-title">{step.title}</strong>
+                <button className="delete-step-btn" onClick={() => onDelete(index)}>🗑️</button>
+            </div>
+            <div className="funnel-step-content">{renderContent()}</div>
+        </div>
+    );
+};
+
+export default function BuildAgentPage() {
+    const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState('playbook');
+    const [funnelSteps, setFunnelSteps] = useState(defaultFunnel);
+    const [masterInstructions, setMasterInstructions] = useState("Always be professional...");
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (!user) return;
+        const fetchData = async () => {
+            const playbookRef = doc(db, 'sales_playbooks', user.uid);
+            const docSnap = await getDoc(playbookRef);
+            if (docSnap.exists() && docSnap.data().steps) {
+                setFunnelSteps(docSnap.data().steps);
+            }
+        };
+        fetchData();
+    }, [user]);
+
+    const handleUpdateStep = (index, field, value) => {
+        const newSteps = [...funnelSteps];
+        newSteps[index][field] = value;
+        setFunnelSteps(newSteps);
+    };
+
+    const handleDeleteStep = (index) => {
+        setFunnelSteps(funnelSteps.filter((_, i) => i !== index));
+    };
+
+    const handleAddStep = () => {
+        const newStep = { id: Date.now(), type: 'qualification', title: "New Custom Question", question: "" };
+        setFunnelSteps([...funnelSteps, newStep]);
+    };
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+        if (active.id !== over.id) {
+            setFunnelSteps((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
 
     const handleSaveChanges = async () => {
         if (!user) return;
         setIsSaving(true);
-        setSaveMessage('');
         try {
             const playbookRef = doc(db, 'sales_playbooks', user.uid);
-            await setDoc(playbookRef, { agentId: user.uid, ...playbook }, { merge: true });
+            await setDoc(playbookRef, { agentId: user.uid, steps: funnelSteps }, { merge: true });
+            
             const userRef = doc(db, 'users', user.uid);
-            const dncArray = dncList.split('\n').filter(num => num.trim() !== '');
-            await updateDoc(userRef, {
-                knowledgeDocument: knowledgeBase,
-                personality: personality,
-                doNotContactList: dncArray
-            });
-            setSaveMessage('All changes saved successfully!');
+            await updateDoc(userRef, { masterInstructions: masterInstructions });
+
+            alert("Changes saved!");
         } catch (error) {
-            console.error("Error saving changes:", error);
-            setSaveMessage('Error: Could not save changes.');
+            alert("Error saving changes.");
         } finally {
             setIsSaving(false);
-            setTimeout(() => setSaveMessage(''), 3000);
         }
     };
-
-    if (isLoading) return <div style={{padding: '40px'}}>Loading AI Studio...</div>;
 
     return (
         <div>
             <div className="page-title-header">
                 <h1>Build My Agent</h1>
-                <button className="btn btn-primary" onClick={handleSaveChanges} disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save All Changes'}
-                </button>
+                <button className="btn btn-primary" onClick={handleSaveChanges} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save All Changes'}</button>
             </div>
-            <p className="page-subtitle">This is your AI Studio. Customize your agent's sales script, knowledge, and personality.</p>
-            {saveMessage && <div className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>{saveMessage}</div>}
-
+            <p className="page-subtitle">Design your agent's unique sales process and knowledge.</p>
+            
             <div className="build-agent-tabs">
                 <button onClick={() => setActiveTab('playbook')} className={activeTab === 'playbook' ? 'active' : ''}>Sales Playbook</button>
-                <button onClick={() => setActiveTab('knowledge')} className={activeTab === 'knowledge' ? 'active' : ''}>Knowledge Base</button>
-                <button onClick={() => setActiveTab('personality')} className={activeTab === 'personality' ? 'active' : ''}>Personality</button>
-                <button onClick={() => setActiveTab('dnc')} className={activeTab === 'dnc' ? 'active' : ''}>Do Not Contact</button>
+                {/* Other tabs can be re-enabled here */}
             </div>
 
             <div className="tab-content-wrapper">
                 {activeTab === 'playbook' && (
                     <div className="tab-content">
-                        <AccordionSection title="Step 1: Greeting & Hook" isOpen={openAccordion === 'greeting'} onClick={() => setOpenAccordion(openAccordion === 'greeting' ? null : 'greeting')}>
-                            <div className="accordion-content">
-                                <label>Customize the first message your agent sends to a new lead:</label>
-                                <textarea name="greeting" value={playbook.greeting} onChange={handlePlaybookChange} rows="4"></textarea>
-                            </div>
-                        </AccordionSection>
-                        
-                        <AccordionSection title="Step 2: Booking Flow" isOpen={openAccordion === 'booking'} onClick={() => setOpenAccordion(openAccordion === 'booking' ? null : 'booking')}>
-                            <div className="accordion-content">
-                                <div className="booking-style-selector">
-                                    <div className={`booking-option ${playbook.booking_style === 'MANUAL' ? 'selected' : ''}`} onClick={() => setPlaybook({...playbook, booking_style: 'MANUAL'})}><h4>Manual Confirmation</h4><p>AI captures preferred time, you finalize.</p></div>
-                                    <div className={`booking-option ${playbook.booking_style === 'AUTOMATED' ? 'selected' : ''}`}><h4>Automated Booking</h4><p>AI books directly into your calendar. (Coming Soon)</p></div>
-                                </div>
-                                <div style={{marginTop: '24px', opacity: playbook.booking_style === 'MANUAL' ? 1 : 0.5}}>
-                                    <label>Initial request for availability:</label>
-                                    <textarea name="booking_manual_prompt" value={playbook.booking_manual_prompt} onChange={handlePlaybookChange} rows="2" disabled={playbook.booking_style !== 'MANUAL'}></textarea>
-                                    <label style={{marginTop: '16px'}}>Final handoff message:</label>
-                                    <textarea name="booking_manual_confirm" value={playbook.booking_manual_confirm} onChange={handlePlaybookChange} rows="3" disabled={playbook.booking_style !== 'MANUAL'}></textarea>
-                                </div>
-                            </div>
-                        </AccordionSection>
-                        
-                        <AccordionSection title="Step 3: Qualification Funnel" isOpen={openAccordion === 'qualification'} onClick={() => setOpenAccordion(openAccordion === 'qualification' ? null : 'qualification')}>
-                            <div className="accordion-content">
-                                <p className="form-card-subtitle">Enable and customize the questions your agent asks after a viewing is requested.</p>
-                                {playbook.qualification_steps.map((step, index) => (
-                                    <div key={step.id} className="question-builder-item">
-                                        <input type="checkbox" checked={step.enabled} name={`qualification_enabled`} onChange={(e) => handlePlaybookChange(e, index)} />
-                                        <textarea value={step.question} name={`qualification_question`} onChange={(e) => handlePlaybookChange(e, index)} rows={2} disabled={!step.enabled}></textarea>
-                                    </div>
+                        <DndContext sensors={[]} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={funnelSteps} strategy={verticalListSortingStrategy}>
+                                {funnelSteps.map((step, index) => (
+                                    <SortableStep 
+                                        key={step.id} 
+                                        step={step} 
+                                        index={index}
+                                        onUpdate={handleUpdateStep}
+                                        onDelete={handleDeleteStep}
+                                    />
                                 ))}
-                            </div>
-                        </AccordionSection>
-
-                        <AccordionSection title="Step 4: Finance Handoff" isOpen={openAccordion === 'handoff'} onClick={() => setOpenAccordion(openAccordion === 'handoff' ? null : 'handoff')}>
-                           <div className="accordion-content">
-                                <div className="question-builder-item compact"><input type="checkbox" name="handoff_enabled" checked={playbook.finance_handoff.enabled} onChange={handlePlaybookChange} /><label>Enable Finance Specialist Handoff</label></div>
-                                <div style={{opacity: playbook.finance_handoff.enabled ? 1 : 0.5, marginTop: '16px'}}>
-                                    <div className="wizard-form-group"><label>Specialist Name:</label><input type="text" name="handoff_specialist_name" value={playbook.finance_handoff.specialist_name} onChange={handlePlaybookChange} disabled={!playbook.finance_handoff.enabled} /></div>
-                                    <div className="wizard-form-group"><label>Specialist Email:</label><input type="email" name="handoff_specialist_email" value={playbook.finance_handoff.specialist_email} onChange={handlePlaybookChange} disabled={!playbook.finance_handoff.enabled} /></div>
-                                    <div className="wizard-form-group"><label>Handoff Message:</label><textarea name="handoff_handoff_message" value={playbook.finance_handoff.handoff_message} onChange={handlePlaybookChange} rows="3" disabled={!playbook.finance_handoff.enabled}></textarea></div>
-                                </div>
-                           </div>
-                        </AccordionSection>
-                    </div>
-                )}
-                {activeTab === 'knowledge' && (
-                    <div className="tab-content">
-                        <h2>The Brain: Your Agent's Knowledge</h2>
-                        <div className="knowledge-editor"><textarea value={knowledgeBase} onChange={(e) => setKnowledgeBase(e.target.value)} rows="20"></textarea></div>
-                    </div>
-                )}
-                {activeTab === 'personality' && (
-                     <div className="tab-content">
-                        <h2>The Vibe: Define your agent's personality</h2>
-                         <div className="form-card"><label>Professionalism</label><input type="range" name="professionalism" min="0" max="1" step="0.1" value={personality.professionalism} onChange={handlePersonalityChange} className="personality-slider" /><div className="slider-labels"><span>Casual & Friendly</span><span>Formal & Direct</span></div></div>
-                         <div className="form-card"><label>Enthusiasm</label><input type="range" name="enthusiasm" min="0" max="1" step="0.1" value={personality.enthusiasm} onChange={handlePersonalityChange} className="personality-slider" /><div className="slider-labels"><span>Calm & Concise</span><span>Eager & Expressive</span></div></div>
-                    </div>
-                )}
-                {activeTab === 'dnc' && (
-                    <div className="tab-content">
-                        <h2>Do Not Contact List</h2>
-                         <div className="form-card"><label htmlFor="dnc-list">Enter one WhatsApp number per line</label><textarea id="dnc-list" className="dnc-textarea" value={dncList} onChange={(e) => setDncList(e.target.value)} placeholder="e.g. +27821234567&#10;+27831234568" rows="10"></textarea></div>
+                            </SortableContext>
+                        </DndContext>
+                        <div className="add-step-container">
+                            <button className="btn btn-outline" onClick={handleAddStep}>+ Add Step</button>
+                        </div>
+                        <div className="form-card master-instructions">
+                            <h3>Master Instructions</h3>
+                            <textarea value={masterInstructions} onChange={(e) => setMasterInstructions(e.target.value)} rows="5"></textarea>
+                        </div>
                     </div>
                 )}
             </div>
