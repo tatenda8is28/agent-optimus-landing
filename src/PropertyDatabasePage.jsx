@@ -1,4 +1,4 @@
-// src/PropertyDatabasePage.jsx (FINAL, WITH SEARCH AND COUNTS)
+// src/PropertyDatabasePage.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { db, functions } from './firebaseClient';
@@ -43,17 +43,12 @@ export default function PropertyDatabasePage() {
     }, [user]);
 
     const filteredProperties = useMemo(() => {
-        if (!searchTerm) {
-            return properties;
-        }
-        return properties.filter(prop => 
-            prop.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            prop.suburb?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        if (!searchTerm) return properties;
+        return properties.filter(prop => prop.address?.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [properties, searchTerm]);
 
     const handleNewPropertyChange = (e) => { const { name, value } = e.target; setNewProperty(prev => ({ ...prev, [name]: value })); };
-
+    
     const handleAddPocketListing = async () => {
         if (!user || !newProperty.price || !newProperty.address) { alert("Price and Address are required."); return; }
         setIsUploading(true);
@@ -66,7 +61,7 @@ export default function PropertyDatabasePage() {
     };
     
     const handleFileSelect = (e) => { if (e.target.files && e.target.files[0]) { if (e.target.files[0].type !== "text/csv") { alert("Please select a valid .csv file."); e.target.value = null; return; } setCsvFile(e.target.files[0]); } };
-
+    
     const handleCsvImport = async () => {
         if (!user || !csvFile) { alert("Please select a CSV file to import."); return; }
         setIsUploading(true);
@@ -90,25 +85,42 @@ export default function PropertyDatabasePage() {
         }
     };
 
+    const handleDeleteProperty = async (propertyId) => {
+        if (window.confirm("Are you sure you want to permanently delete this listing?")) {
+            try {
+                const deletePropertyFunc = httpsCallable(functions, 'deleteProperty');
+                await deletePropertyFunc({ propertyId: propertyId });
+            } catch (error) {
+                console.error("Error deleting property:", error);
+                alert(`Failed to delete property: ${error.message}`);
+            }
+        }
+    };
+
+    const handleDeleteAllProperties = async () => {
+        if (window.confirm("DANGER: This will permanently delete ALL properties from your database. This action cannot be undone. Are you absolutely sure?")) {
+            try {
+                const deleteAllPropertiesFunc = httpsCallable(functions, 'deleteAllProperties');
+                await deleteAllPropertiesFunc();
+            } catch (error) {
+                console.error("Error deleting all properties:", error);
+                alert(`Failed to delete all properties: ${error.message}`);
+            }
+        }
+    };
+
     return (
         <div>
             <div className="page-title-header">
                 <h1>Property Database</h1>
                 <div className="db-header-actions">
-                    <button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>📥 Import from Property24</button>
+                    <button className="btn btn-outline danger-btn" onClick={handleDeleteAllProperties}>Delete All</button>
+                    <button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>📥 Import CSV</button>
                 </div>
             </div>
-            <p className="page-subtitle">
-                Displaying {filteredProperties.length} of {properties.length} total properties. Manage your listings below.
-            </p>
+            <p className="page-subtitle">Displaying {filteredProperties.length} of {properties.length} total properties.</p>
             <div className="db-filters">
-                <input 
-                    type="text" 
-                    placeholder="Search by address or suburb..." 
-                    className="filter-search-input"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <input type="text" placeholder="Search by address or suburb..." className="filter-search-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>+ Add Pocket Listing</button>
             </div>
             {isLoading ? <p style={{padding: '20px'}}>Loading properties...</p> : (
@@ -116,7 +128,16 @@ export default function PropertyDatabasePage() {
                     {filteredProperties.length > 0 ? (
                         filteredProperties.map(prop => (
                             <div key={prop.id} className="property-card">
-                                <div className="property-image" style={{backgroundImage: `url(${prop.imageUrl || placeholderImage})`}}><div className={`property-status-tag status-${prop.status?.toLowerCase()}`}>{prop.status}</div></div>
+                                <div className="property-image" style={{backgroundImage: `url(${prop.imageUrl || placeholderImage})`}}>
+                                    <div className={`property-status-tag status-${prop.status?.toLowerCase()}`}>{prop.status}</div>
+                                    <div className="property-menu">
+                                        <button>⋮</button>
+                                        <div className="menu-dropdown">
+                                            <a href="#" onClick={(e) => {e.preventDefault(); alert('Edit coming soon!')}}>✏️ Edit</a>
+                                            <a href="#" onClick={(e) => {e.preventDefault(); handleDeleteProperty(prop.id)}} className="delete-link">🗑️ Delete</a>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div className="property-content">
                                     <p className="property-price">R {prop.price ? prop.price.toLocaleString('en-ZA') : '0'}</p>
                                     <p className="property-address">{prop.address || prop.location}</p>
@@ -125,7 +146,7 @@ export default function PropertyDatabasePage() {
                                 </div>
                             </div>
                         ))
-                    ) : ( <div className="calendar-placeholder"><p>No properties found in your database or matching your search.</p></div> )}
+                    ) : ( <div className="calendar-placeholder"><p>No properties found.</p></div> )}
                 </div>
             )}
             {isImportModalOpen && ( <Modal onClose={() => setIsImportModalOpen(false)}> <h2>Import from Property24 CSV</h2> <a href="/agent-optimus-template.csv" download className="template-link">Download Template CSV</a> <input type="file" accept=".csv" onChange={handleFileSelect} className="csv-input" /> {csvFile && <p className="file-name-display">Selected file: {csvFile.name}</p>} <div className="modal-actions"> <button className="btn btn-outline" onClick={() => setIsImportModalOpen(false)}>Cancel</button> <button className="btn btn-primary" onClick={handleCsvImport} disabled={isUploading || !csvFile}>{isUploading ? 'Uploading & Processing...' : 'Upload & Process'}</button> </div> </Modal> )}

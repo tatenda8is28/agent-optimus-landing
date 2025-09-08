@@ -1,5 +1,4 @@
 /* src/PropertyDatabasePage.css */
-
 .db-header-actions { display: flex; align-items: center; gap: 16px; }
 .db-filters { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
 .filter-search-input, .filter-select { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-white); font-size: 14px; }
@@ -12,6 +11,15 @@
 .property-status-tag { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 .status-active { background-color: rgba(5, 150, 105, 0.8); }
 .status-inactive { background-color: rgba(71, 85, 105, 0.8); }
+.property-menu { position: absolute; top: 8px; right: 8px; }
+.property-menu > button { background: rgba(0,0,0,0.3); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 18px; line-height: 1; cursor: pointer; }
+.property-menu .menu-dropdown { display: none; position: absolute; right: 0; top: 32px; background: var(--bg-white); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid var(--border-color); z-index: 10; padding: 4px; }
+.property-menu:hover .menu-dropdown { display: block; }
+.menu-dropdown a { display: block; padding: 8px 12px; text-decoration: none; color: var(--ink); font-size: 14px; border-radius: 6px; }
+.menu-dropdown a:hover { background: var(--bg-light); }
+.menu-dropdown .delete-link { color: var(--red-dark); }
+.menu-dropdown .delete-link:hover { background-color: #fee2e2; }
+
 .property-content { padding: 16px; }
 .property-price { font-size: 20px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
 .property-address { font-size: 14px; margin: 0 0 8px; color: var(--ink-light); }
@@ -29,7 +37,6 @@ input:checked + .slider:before { transform: translateX(14px); }
 .slider.round { border-radius: 34px; }
 .slider.round:before { border-radius: 50%; }
 
-/* --- MODAL STYLES --- */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
 .modal-content { position: relative; width: 90%; max-width: 500px; background: var(--bg-white); border-radius: 18px; padding: 32px; }
 .modal-close-btn { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--ink-light); }

@@ -1,5 +1,4 @@
-// functions/index.js (FINAL, FULL VERSION)
-
+// functions/index.js
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { parse } = require("csv-parse");
@@ -82,9 +81,7 @@ exports.analyzeLeadConversation = onDocumentUpdated("leads/{leadId}", async (eve
     const newData = event.data.after.data();
     const previousData = event.data.before.data();
     const leadId = event.params.leadId;
-    if (!newData.conversation || newData.conversation.length === (previousData.conversation?.length || 0)) {
-        return null;
-    }
+    if (!newData.conversation || newData.conversation.length === (previousData.conversation?.length || 0)) { return null; }
     logger.log(`[Intel] Analyzing new messages for lead ${leadId}...`);
     const conversationText = newData.conversation.map(msg => msg.content).join(' ').toLowerCase();
     const intelTags = new Set(newData.intelTags || []);
@@ -97,4 +94,42 @@ exports.analyzeLeadConversation = onDocumentUpdated("leads/{leadId}", async (eve
         return event.data.after.ref.update({ intelTags: newTagsArray });
     }
     return null;
+});
+
+exports.deleteProperty = onCall(async (request) => {
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
+    const agentId = request.auth.uid;
+    const { propertyId } = request.data;
+    if (!propertyId) { throw new HttpsError('invalid-argument', 'Missing "propertyId" argument.'); }
+    try {
+        const docRef = firestore.collection('properties').doc(propertyId);
+        const doc = await docRef.get();
+        if (!doc.exists) { throw new HttpsError('not-found', 'Property document not found.'); }
+        if (doc.data().agentId !== agentId) { throw new HttpsError('permission-denied', 'You do not have permission to delete this property.'); }
+        await docRef.delete();
+        logger.log(`User ${agentId} deleted property ${propertyId}`);
+        return { success: true, message: "Property deleted successfully." };
+    } catch (error) {
+        if (error instanceof HttpsError) { throw error; }
+        logger.error("Error deleting property:", error);
+        throw new HttpsError('internal', 'An unexpected error occurred.');
+    }
+});
+
+exports.deleteAllProperties = onCall(async (request) => {
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
+    const agentId = request.auth.uid;
+    try {
+        const propertiesQuery = firestore.collection('properties').where('agentId', '==', agentId);
+        const snapshot = await propertiesQuery.get();
+        if (snapshot.empty) { return { success: true, message: "No properties found to delete." }; }
+        const batch = firestore.batch();
+        snapshot.docs.forEach(doc => { batch.delete(doc.ref); });
+        await batch.commit();
+        logger.log(`User ${agentId} deleted ${snapshot.size} properties.`);
+        return { success: true, message: `Successfully deleted ${snapshot.size} properties.` };
+    } catch (error) {
+        logger.error("Error deleting all properties:", error);
+        throw new HttpsError('internal', 'An unexpected error occurred while deleting properties.');
+    }
 });
