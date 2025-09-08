@@ -1,9 +1,10 @@
-// src/CalendarPage.jsx
+// src/CalendarPage.jsx (FINAL, WITH 2-DAY BUG FIX)
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { db, functions } from './firebaseClient';
 import { httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
@@ -34,13 +35,29 @@ export default function CalendarPage() {
                 type: doc.data().type || 'ai_booking'
             }));
             setEvents(bookingsData);
-            setIsLoading(false);
+ setIsLoading(false);
         });
         return () => unsubscribe();
     }, [user]);
     
     const handleSelectSlot = useCallback(({ start, end }) => {
-        if (start.getTime() === end.getTime()) { end.setHours(start.getHours() + 1); }
+        // --- THIS IS THE DEFINITIVE FIX FOR THE 2-DAY BUG ---
+        // Check if the selection is a single day click/drag in month view
+        const isFullDaySelection = 
+            start.getHours() === 0 && start.getMinutes() === 0 &&
+            end.getHours() === 0 && end.getMinutes() === 0 &&
+            (end.getTime() - start.getTime()) === 24 * 60 * 60 * 1000;
+
+        if (isFullDaySelection) {
+            // Set a default 1-hour duration for a single day click
+            start.setHours(9, 0, 0); // Default to 9:00 AM
+            end = new Date(start);
+            end.setHours(start.getHours() + 1);
+        } else if (start.getTime() === end.getTime()) {
+            // Handle a single click (not a drag) in week/day view
+            end.setHours(start.getHours() + 1);
+        }
+        
         setModalState({ isOpen: true, type: 'create', data: { title: '', start, end } });
     }, []);
     
