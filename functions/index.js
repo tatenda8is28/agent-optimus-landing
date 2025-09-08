@@ -133,3 +133,31 @@ exports.deleteAllProperties = onCall(async (request) => {
         throw new HttpsError('internal', 'An unexpected error occurred while deleting properties.');
     }
 });
+
+exports.deleteBooking = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'You must be logged in.');
+    }
+    const agentId = request.auth.uid;
+    const { bookingId } = request.data;
+    if (!bookingId) {
+        throw new HttpsError('invalid-argument', 'Missing "bookingId" argument.');
+    }
+    try {
+        const docRef = firestore.collection('bookings').doc(bookingId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            throw new HttpsError('not-found', 'Booking document not found.');
+        }
+        if (doc.data().agentId !== agentId) {
+            throw new HttpsError('permission-denied', 'You do not have permission to delete this booking.');
+        }
+        await docRef.delete();
+        logger.log(`User ${agentId} deleted booking ${bookingId}`);
+        return { success: true, message: "Event deleted successfully." };
+    } catch (error) {
+        if (error instanceof HttpsError) { throw error; }
+        logger.error("Error deleting booking:", error);
+        throw new HttpsError('internal', 'An unexpected error occurred.');
+    }
+});

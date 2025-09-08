@@ -1,10 +1,9 @@
-// src/CalendarPage.jsx (FINAL, FULLY INTERACTIVE VERSION)
+// src/CalendarPage.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { db, functions } from './firebaseClient';
 import { httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
@@ -41,12 +40,20 @@ export default function CalendarPage() {
     }, [user]);
     
     const handleSelectSlot = useCallback(({ start, end }) => {
+        if (start.getTime() === end.getTime()) { end.setHours(start.getHours() + 1); }
         setModalState({ isOpen: true, type: 'create', data: { title: '', start, end } });
     }, []);
     
     const handleSelectEvent = useCallback((event) => {
         setModalState({ isOpen: true, type: 'view', data: event });
     }, []);
+
+    const handleTimeChange = (field, value) => {
+        const [hours, minutes] = value.split(':');
+        const newDate = new Date(modalState.data[field]);
+        newDate.setHours(hours); newDate.setMinutes(minutes);
+        setModalState(prev => ({ ...prev, data: { ...prev.data, [field]: newDate }}));
+    };
 
     const handleSaveEvent = async () => {
         const { title, start, end } = modalState.data;
@@ -57,7 +64,7 @@ export default function CalendarPage() {
                 type: 'manual_block', createdAt: serverTimestamp()
             });
             setModalState({ isOpen: false, data: null, type: null });
-        } catch (error) { console.error("Error creating manual event:", error); alert("Failed to save event."); }
+        } catch (error) { console.error("Error creating manual event:", error); alert(`Failed to save event: ${error.message}`); }
     };
     
     const handleDeleteEvent = async () => {
@@ -88,14 +95,17 @@ export default function CalendarPage() {
                     defaultView="month" style={{ height: 700 }} selectable
                     onSelectSlot={handleSelectSlot} onSelectEvent={handleSelectEvent} eventPropGetter={eventStyleGetter} />
             </div>
-
             {modalState.isOpen && (
                 <Modal onClose={() => setModalState({ isOpen: false, data: null, type: null })}>
                     {modalState.type === 'create' && (
                         <>
                             <h2>Block Out Time</h2>
-                            <div className="wizard-form-group"><label>Event Title</label><input type="text" value={modalState.data.title} onChange={(e) => setModalState({...modalState, data: {...modalState.data, title: e.target.value}})} /></div>
-                            <p className="time-display">From: {format(modalState.data.start, 'PPP p')}<br/>To: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{format(modalState.data.end, 'PPP p')}</p>
+                            <div className="wizard-form-group"><label>Event Title</label><input type="text" placeholder="e.g., Personal Appointment" value={modalState.data.title} onChange={(e) => setModalState({...modalState, data: {...modalState.data, title: e.target.value}})} /></div>
+                            <div className="time-input-grid">
+                                <div className="wizard-form-group"><label>Start Time</label><input type="time" value={format(modalState.data.start, 'HH:mm')} onChange={(e) => handleTimeChange('start', e.target.value)} /></div>
+                                <div className="wizard-form-group"><label>End Time</label><input type="time" value={format(modalState.data.end, 'HH:mm')} onChange={(e) => handleTimeChange('end', e.target.value)} /></div>
+                            </div>
+                            <p className="time-display">Date: {format(modalState.data.start, 'PPP')}</p>
                             <div className="modal-actions"><button className="btn btn-outline" onClick={() => setModalState({ isOpen: false, data: null, type: null })}>Cancel</button><button className="btn btn-primary" onClick={handleSaveEvent}>Save Event</button></div>
                         </>
                     )}
@@ -104,10 +114,7 @@ export default function CalendarPage() {
                             <h2>Event Details</h2>
                             <h3>{modalState.data.title}</h3>
                             <p className="time-display">From: {format(modalState.data.start, 'PPP p')}<br/>To: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{format(modalState.data.end, 'PPP p')}</p>
-                            <div className="modal-actions">
-                                <button className="btn btn-outline danger-btn" onClick={handleDeleteEvent}>Delete Event</button>
-                                <button className="btn btn-primary" onClick={() => setModalState({ isOpen: false, data: null, type: null })}>Close</button>
-                            </div>
+                            <div className="modal-actions"><button className="btn btn-outline danger-btn" onClick={handleDeleteEvent}>Delete Event</button><button className="btn btn-primary" onClick={() => setModalState({ isOpen: false, data: null, type: null })}>Close</button></div>
                         </>
                     )}
                 </Modal>

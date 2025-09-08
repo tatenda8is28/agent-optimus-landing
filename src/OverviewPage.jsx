@@ -1,4 +1,4 @@
-// src/OverviewPage.jsx (FINAL, WITH ACCURATE KPIs)
+// src/OverviewPage.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -25,12 +25,7 @@ export default function OverviewPage() {
         const leadsQuery = query(collection(db, 'leads'), where('agentId', '==', user.uid));
         unsubscribers.push(onSnapshot(leadsQuery, (snapshot) => { setTotalLeads(snapshot.size); }));
         
-        // --- THE ACCURATE KPI FIX ---
-        const bookingsQuery = query(
-            collection(db, 'bookings'), 
-            where('agentId', '==', user.uid), 
-            where('type', '==', 'ai_booking') // Only count AI bookings
-        );
+        const bookingsQuery = query( collection(db, 'bookings'), where('agentId', '==', user.uid), where('type', '==', 'ai_booking') );
         unsubscribers.push(onSnapshot(bookingsQuery, (snapshot) => { setViewingsBooked(snapshot.size); }));
 
         const twentyFourHoursAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
