@@ -1,4 +1,4 @@
-// src/BuildAgentPage.jsx (FINAL, CLEANED VERSION)
+// src/BuildAgentPage.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -6,32 +6,34 @@ import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import './BuildAgentPage.css';
 
 const defaultPlaybook = {
-    greeting_yes: "Great! When would suit you best – today, tomorrow, or this weekend? I’ll confirm what’s possible and get back to you shortly.",
-    greeting_no: "No problem 😊 May I ask what you’re ideally looking for so I can send you a few matching options?",
+    greeting: "Hi [Buyer Name]! This is [Agent Name]'s AI assistant from [Company Name]. I see you're interested in the property at [Property Address]. Thank you for your interest! Would you like me to help arrange a viewing?",
     booking_style: "MANUAL",
-    booking_manual_prompt: "Great! I've noted your interest in viewing. What day and time work best for you?",
-    booking_manual_confirm: "Perfect, thanks! I've noted your preference for [Time Provided by User]. Michael will now personally contact the seller to confirm and will be in touch with you shortly to finalize the appointment.",
+    booking_manual_prompt: "Great! What day and time would work best for you to view the property?",
+    booking_manual_confirm: "Perfect, thank you. I've noted your preference. [Agent Name] will personally contact the seller to confirm and will be in touch with you shortly to finalize the appointment.",
     qualification_steps: [
-        { id: 'timeline', enabled: true, question: "While that's being processed, could you let me know how soon you are looking to purchase?" },
-        { id: 'finance', enabled: true, question: "And will you be purchasing with cash, with a bond, or subject to the sale of another property?" }
+        { id: 'timeline', enabled: true, question: "While that's being processed, could you let me know how soon you are looking to purchase? (e.g., Immediately, 1-3 months, 6+ months)" },
+        { id: 'finance', enabled: true, question: "Thank you. And to help us find the best options for you, will you be purchasing with cash, or with a bond/home loan?" }
     ],
     finance_handoff: {
-        enabled: true,
-        specialist_name: "Adel",
-        specialist_email: "adel@example.com",
-        handoff_message: "No problem, our specialist, [Specialist Name], can assist with that. I've sent her your details, and she will be in touch."
+        enabled: false, specialist_name: "", specialist_email: "",
+        handoff_message: "No problem at all. Our finance specialist, [Specialist Name], can assist with that. I've sent them your details, and they will be in touch shortly to help with pre-approval."
     },
-    further_instructions: "Always maintain a casual and helpful tone. If a user asks a question you don't know the answer to, respond with: \"That's a great question. I need to confirm with Michael and I'll get right back to you.\""
 };
-const defaultKnowledgeBase = `Common Buyer Questions\n\nTransfer Costs\nQ: What are the transfer costs?\nA: Transfer costs are fees paid to a conveyancing attorney... It's typically around 8-10% of the purchase price.\n\nOffer to Purchase (OTP)\nQ: What is an OTP?\nA: An Offer to Purchase (OTP) is a legally binding agreement...`;
+
+const defaultKnowledgeBase = `Common Buyer Questions\n\nWhat are transfer costs?\nTransfer costs are fees paid to a conveyancing attorney...`;
 const defaultPersonality = { professionalism: 0.5, enthusiasm: 0.5 };
 
-const AccordionSection = ({ title, children, isOpen, onClick }) => ( <div className={`accordion-section ${isOpen ? 'open' : ''}`}><h3 className="accordion-header" onClick={onClick}>{title}<span className="accordion-icon">{isOpen ? '−' : '+'}</span></h3>{isOpen && <div className="accordion-content">{children}</div>}</div> );
+const AccordionSection = ({ title, children, isOpen, onClick }) => (
+    <div className={`accordion-section ${isOpen ? 'open' : ''}`}>
+        <h3 className="accordion-header" onClick={onClick}>{title}<span className="accordion-icon">{isOpen ? '−' : '+'}</span></h3>
+        {isOpen && <div className="accordion-content">{children}</div>}
+    </div>
+);
 
 export default function BuildAgentPage() {
     const { user, userProfile } = useAuth();
     const [activeTab, setActiveTab] = useState('playbook');
-    const [openAccordion, setOpenAccordion] = useState(null);
+    const [openAccordion, setOpenAccordion] = useState('greeting');
     const [playbook, setPlaybook] = useState(defaultPlaybook);
     const [knowledgeBase, setKnowledgeBase] = useState(defaultKnowledgeBase);
     const [personality, setPersonality] = useState(defaultPersonality);
@@ -47,6 +49,7 @@ export default function BuildAgentPage() {
             const playbookRef = doc(db, 'sales_playbooks', user.uid);
             const playbookSnap = await getDoc(playbookRef);
             if (playbookSnap.exists()) { setPlaybook({ ...defaultPlaybook, ...playbookSnap.data() }); }
+            
             if (userProfile.knowledgeDocument) setKnowledgeBase(userProfile.knowledgeDocument);
             if (userProfile.personality) setPersonality(userProfile.personality);
             if (userProfile.doNotContactList) setDncList(userProfile.doNotContactList.join('\n'));
@@ -54,10 +57,19 @@ export default function BuildAgentPage() {
         };
         fetchData();
     }, [user, userProfile]);
-    
+
     const handlePlaybookChange = (e, index = null) => {
         const { name, value, type, checked } = e.target;
-        if (name.includes("qualification_")) { const field = name.split('_')[1]; const updatedSteps = playbook.qualification_steps.map((step, i) => i === index ? { ...step, [field]: type === 'checkbox' ? checked : value } : step); setPlaybook(prev => ({ ...prev, qualification_steps: updatedSteps })); } else if (name.startsWith("handoff_")) { const key = name.split('_')[1]; setPlaybook(prev => ({ ...prev, finance_handoff: { ...prev.finance_handoff, [key]: type === 'checkbox' ? checked : value }})); } else { setPlaybook(prev => ({ ...prev, [name]: value })); }
+        if (name.startsWith("qualification_")) {
+            const field = name.split('_')[1];
+            const updatedSteps = playbook.qualification_steps.map((step, i) => i === index ? { ...step, [field]: type === 'checkbox' ? checked : value } : step);
+            setPlaybook(prev => ({ ...prev, qualification_steps: updatedSteps }));
+        } else if (name.startsWith("handoff_")) {
+            const key = name.split('_')[1];
+            setPlaybook(prev => ({ ...prev, finance_handoff: { ...prev.finance_handoff, [key]: type === 'checkbox' ? checked : value }}));
+        } else {
+            setPlaybook(prev => ({ ...prev, [name]: value }));
+        }
     };
     const handlePersonalityChange = (e) => setPersonality(prev => ({ ...prev, [e.target.name]: parseFloat(e.target.value) }));
 
@@ -70,10 +82,19 @@ export default function BuildAgentPage() {
             await setDoc(playbookRef, { agentId: user.uid, ...playbook }, { merge: true });
             const userRef = doc(db, 'users', user.uid);
             const dncArray = dncList.split('\n').filter(num => num.trim() !== '');
-            await updateDoc(userRef, { knowledgeDocument: knowledgeBase, personality: personality, doNotContactList: dncArray });
+            await updateDoc(userRef, {
+                knowledgeDocument: knowledgeBase,
+                personality: personality,
+                doNotContactList: dncArray
+            });
             setSaveMessage('All changes saved successfully!');
-        } catch (error) { console.error("Error saving changes:", error); setSaveMessage('Error: Could not save changes.');
-        } finally { setIsSaving(false); setTimeout(() => setSaveMessage(''), 3000); }
+        } catch (error) {
+            console.error("Error saving changes:", error);
+            setSaveMessage('Error: Could not save changes.');
+        } finally {
+            setIsSaving(false);
+            setTimeout(() => setSaveMessage(''), 3000);
+        }
     };
 
     if (isLoading) return <div style={{padding: '40px'}}>Loading AI Studio...</div>;
@@ -82,38 +103,35 @@ export default function BuildAgentPage() {
         <div>
             <div className="page-title-header">
                 <h1>Build My Agent</h1>
-                <button className="btn btn-primary" onClick={handleSaveChanges} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save All Changes'}</button>
+                <button className="btn btn-primary" onClick={handleSaveChanges} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save All Changes'}
+                </button>
             </div>
-            <p className="page-subtitle">This is your AI Studio. Customize your agent's knowledge, sales script, and personality to perfectly match your brand.</p>
+            <p className="page-subtitle">This is your AI Studio. Customize your agent's sales script, knowledge, and personality.</p>
             {saveMessage && <div className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>{saveMessage}</div>}
+
             <div className="build-agent-tabs">
                 <button onClick={() => setActiveTab('playbook')} className={activeTab === 'playbook' ? 'active' : ''}>Sales Playbook</button>
                 <button onClick={() => setActiveTab('knowledge')} className={activeTab === 'knowledge' ? 'active' : ''}>Knowledge Base</button>
                 <button onClick={() => setActiveTab('personality')} className={activeTab === 'personality' ? 'active' : ''}>Personality</button>
                 <button onClick={() => setActiveTab('dnc')} className={activeTab === 'dnc' ? 'active' : ''}>Do Not Contact</button>
             </div>
+
             <div className="tab-content-wrapper">
                 {activeTab === 'playbook' && (
                     <div className="tab-content">
-                        <AccordionSection title="Step 1: The Initial Greeting & Hook" isOpen={openAccordion === 'greeting'} onClick={() => setOpenAccordion(openAccordion === 'greeting' ? null : 'greeting')}>
-                           <div className="accordion-content">
-                                <label>If a lead is interested (e.g., clicks "Yes"):</label>
-                                <textarea name="greeting_yes" value={playbook.greeting_yes} onChange={handlePlaybookChange} rows="3"></textarea>
-                                <label style={{marginTop: '16px'}}>If a lead is not interested (e.g., clicks "No"):</label>
-                                <textarea name="greeting_no" value={playbook.greeting_no} onChange={handlePlaybookChange} rows="2"></textarea>
+                        <AccordionSection title="Step 1: Greeting & Hook" isOpen={openAccordion === 'greeting'} onClick={() => setOpenAccordion(openAccordion === 'greeting' ? null : 'greeting')}>
+                            <div className="accordion-content">
+                                <label>Customize the first message your agent sends to a new lead:</label>
+                                <textarea name="greeting" value={playbook.greeting} onChange={handlePlaybookChange} rows="4"></textarea>
                             </div>
                         </AccordionSection>
-                        <AccordionSection title="Step 2: The Booking & Confirmation Flow" isOpen={openAccordion === 'booking'} onClick={() => setOpenAccordion(openAccordion === 'booking' ? null : 'booking')}>
+                        
+                        <AccordionSection title="Step 2: Booking Flow" isOpen={openAccordion === 'booking'} onClick={() => setOpenAccordion(openAccordion === 'booking' ? null : 'booking')}>
                             <div className="accordion-content">
                                 <div className="booking-style-selector">
-                                    <div className={`booking-option ${playbook.booking_style === 'MANUAL' ? 'selected' : ''}`} onClick={() => setPlaybook({...playbook, booking_style: 'MANUAL'})}>
-                                        <h4>Manual Confirmation</h4>
-                                        <p>AI captures preferred time, you contact the seller to finalize.</p>
-                                    </div>
-                                    <div className={`booking-option ${playbook.booking_style === 'AUTOMATED' ? 'selected' : ''}`}>
-                                        <h4>Automated Booking</h4>
-                                        <p>AI books directly into your calendar. (Coming Soon)</p>
-                                    </div>
+                                    <div className={`booking-option ${playbook.booking_style === 'MANUAL' ? 'selected' : ''}`} onClick={() => setPlaybook({...playbook, booking_style: 'MANUAL'})}><h4>Manual Confirmation</h4><p>AI captures preferred time, you finalize.</p></div>
+                                    <div className={`booking-option ${playbook.booking_style === 'AUTOMATED' ? 'selected' : ''}`}><h4>Automated Booking</h4><p>AI books directly into your calendar. (Coming Soon)</p></div>
                                 </div>
                                 <div style={{marginTop: '24px', opacity: playbook.booking_style === 'MANUAL' ? 1 : 0.5}}>
                                     <label>Initial request for availability:</label>
@@ -123,54 +141,48 @@ export default function BuildAgentPage() {
                                 </div>
                             </div>
                         </AccordionSection>
-                        <AccordionSection title="Step 3: The Qualification Funnel" isOpen={openAccordion === 'qualification'} onClick={() => setOpenAccordion(openAccordion === 'qualification' ? null : 'qualification')}>
-                             <div className="accordion-content">
+                        
+                        <AccordionSection title="Step 3: Qualification Funnel" isOpen={openAccordion === 'qualification'} onClick={() => setOpenAccordion(openAccordion === 'qualification' ? null : 'qualification')}>
+                            <div className="accordion-content">
+                                <p className="form-card-subtitle">Enable and customize the questions your agent asks after a viewing is requested.</p>
                                 {playbook.qualification_steps.map((step, index) => (
                                     <div key={step.id} className="question-builder-item">
-                                        <input type="checkbox" checked={step.enabled} name="qualification_enabled" onChange={(e) => handlePlaybookChange(e, index)} />
-                                        <textarea value={step.question} name="qualification_steps" onChange={(e) => handlePlaybookChange(e, index)} rows={2} disabled={!step.enabled}></textarea>
+                                        <input type="checkbox" checked={step.enabled} name={`qualification_enabled`} onChange={(e) => handlePlaybookChange(e, index)} />
+                                        <textarea value={step.question} name={`qualification_question`} onChange={(e) => handlePlaybookChange(e, index)} rows={2} disabled={!step.enabled}></textarea>
                                     </div>
                                 ))}
                             </div>
                         </AccordionSection>
-                         <AccordionSection title="Step 5: Further Instructions for Your AI" isOpen={openAccordion === 'instructions'} onClick={() => setOpenAccordion(openAccordion === 'instructions' ? null : 'instructions')}>
+
+                        <AccordionSection title="Step 4: Finance Handoff" isOpen={openAccordion === 'handoff'} onClick={() => setOpenAccordion(openAccordion === 'handoff' ? null : 'handoff')}>
                            <div className="accordion-content">
-                                <label>Provide any additional, high-level instructions to guide its behavior.</label>
-                                <textarea name="further_instructions" value={playbook.further_instructions} onChange={handlePlaybookChange} rows="4"></textarea>
-                            </div>
+                                <div className="question-builder-item compact"><input type="checkbox" name="handoff_enabled" checked={playbook.finance_handoff.enabled} onChange={handlePlaybookChange} /><label>Enable Finance Specialist Handoff</label></div>
+                                <div style={{opacity: playbook.finance_handoff.enabled ? 1 : 0.5, marginTop: '16px'}}>
+                                    <div className="wizard-form-group"><label>Specialist Name:</label><input type="text" name="handoff_specialist_name" value={playbook.finance_handoff.specialist_name} onChange={handlePlaybookChange} disabled={!playbook.finance_handoff.enabled} /></div>
+                                    <div className="wizard-form-group"><label>Specialist Email:</label><input type="email" name="handoff_specialist_email" value={playbook.finance_handoff.specialist_email} onChange={handlePlaybookChange} disabled={!playbook.finance_handoff.enabled} /></div>
+                                    <div className="wizard-form-group"><label>Handoff Message:</label><textarea name="handoff_handoff_message" value={playbook.finance_handoff.handoff_message} onChange={handlePlaybookChange} rows="3" disabled={!playbook.finance_handoff.enabled}></textarea></div>
+                                </div>
+                           </div>
                         </AccordionSection>
                     </div>
                 )}
                 {activeTab === 'knowledge' && (
                     <div className="tab-content">
                         <h2>The Brain: Your Agent's Knowledge</h2>
-                        <div className="knowledge-editor">
-                           <textarea value={knowledgeBase} onChange={(e) => setKnowledgeBase(e.target.value)} rows="20"></textarea>
-                        </div>
+                        <div className="knowledge-editor"><textarea value={knowledgeBase} onChange={(e) => setKnowledgeBase(e.target.value)} rows="20"></textarea></div>
                     </div>
                 )}
                 {activeTab === 'personality' && (
                      <div className="tab-content">
                         <h2>The Vibe: Define your agent's personality</h2>
-                         <div className="form-card">
-                            <label>Professionalism</label>
-                            <input type="range" name="professionalism" min="0" max="1" step="0.1" value={personality.professionalism} onChange={handlePersonalityChange} className="personality-slider" />
-                            <div className="slider-labels"><span>Casual & Friendly</span><span>Formal & Direct</span></div>
-                         </div>
-                         <div className="form-card">
-                            <label>Enthusiasm</label>
-                            <input type="range" name="enthusiasm" min="0" max="1" step="0.1" value={personality.enthusiasm} onChange={handlePersonalityChange} className="personality-slider" />
-                            <div className="slider-labels"><span>Calm & Concise</span><span>Eager & Expressive</span></div>
-                         </div>
+                         <div className="form-card"><label>Professionalism</label><input type="range" name="professionalism" min="0" max="1" step="0.1" value={personality.professionalism} onChange={handlePersonalityChange} className="personality-slider" /><div className="slider-labels"><span>Casual & Friendly</span><span>Formal & Direct</span></div></div>
+                         <div className="form-card"><label>Enthusiasm</label><input type="range" name="enthusiasm" min="0" max="1" step="0.1" value={personality.enthusiasm} onChange={handlePersonalityChange} className="personality-slider" /><div className="slider-labels"><span>Calm & Concise</span><span>Eager & Expressive</span></div></div>
                     </div>
                 )}
                 {activeTab === 'dnc' && (
                     <div className="tab-content">
                         <h2>Do Not Contact List</h2>
-                         <div className="form-card">
-                            <label htmlFor="dnc-list">Enter one WhatsApp number per line</label>
-                            <textarea id="dnc-list" className="dnc-textarea" value={dncList} onChange={(e) => setDncList(e.target.value)} placeholder="e.g. +27821234567&#10;+27831234568" rows="10"></textarea>
-                         </div>
+                         <div className="form-card"><label htmlFor="dnc-list">Enter one WhatsApp number per line</label><textarea id="dnc-list" className="dnc-textarea" value={dncList} onChange={(e) => setDncList(e.target.value)} placeholder="e.g. +27821234567&#10;+27831234568" rows="10"></textarea></div>
                     </div>
                 )}
             </div>

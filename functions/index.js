@@ -80,9 +80,7 @@ exports.uploadPropertyCSV = onCall(async (request) => {
 exports.analyzeLeadConversation = onDocumentUpdated("leads/{leadId}", async (event) => {
     const newData = event.data.after.data();
     const previousData = event.data.before.data();
-    const leadId = event.params.leadId;
     if (!newData.conversation || newData.conversation.length === (previousData.conversation?.length || 0)) { return null; }
-    logger.log(`[Intel] Analyzing new messages for lead ${leadId}...`);
     const conversationText = newData.conversation.map(msg => msg.content).join(' ').toLowerCase();
     const intelTags = new Set(newData.intelTags || []);
     if (conversationText.includes('cash')) { intelTags.add('💰 Cash Buyer'); }
@@ -90,7 +88,6 @@ exports.analyzeLeadConversation = onDocumentUpdated("leads/{leadId}", async (eve
     if (conversationText.includes('asap') || conversationText.includes('urgent') || conversationText.includes('soon')) { intelTags.add('🔥 Hot Lead'); }
     const newTagsArray = Array.from(intelTags);
     if (newTagsArray.length > (newData.intelTags?.length || 0)) {
-        logger.log(`[Intel] Adding new tags for lead ${leadId}:`, newTagsArray);
         return event.data.after.ref.update({ intelTags: newTagsArray });
     }
     return null;
@@ -135,29 +132,37 @@ exports.deleteAllProperties = onCall(async (request) => {
 });
 
 exports.deleteBooking = onCall(async (request) => {
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'You must be logged in.');
-    }
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'You must be logged in.'); }
     const agentId = request.auth.uid;
     const { bookingId } = request.data;
-    if (!bookingId) {
-        throw new HttpsError('invalid-argument', 'Missing "bookingId" argument.');
-    }
+    if (!bookingId) { throw new HttpsError('invalid-argument', 'Missing "bookingId" argument.'); }
     try {
         const docRef = firestore.collection('bookings').doc(bookingId);
         const doc = await docRef.get();
-        if (!doc.exists) {
-            throw new HttpsError('not-found', 'Booking document not found.');
-        }
-        if (doc.data().agentId !== agentId) {
-            throw new HttpsError('permission-denied', 'You do not have permission to delete this booking.');
-        }
+        if (!doc.exists) { throw new HttpsError('not-found', 'Booking document not found.'); }
+        if (doc.data().agentId !== agentId) { throw new HttpsError('permission-denied', 'You do not have permission to delete this booking.'); }
         await docRef.delete();
         logger.log(`User ${agentId} deleted booking ${bookingId}`);
         return { success: true, message: "Event deleted successfully." };
     } catch (error) {
         if (error instanceof HttpsError) { throw error; }
         logger.error("Error deleting booking:", error);
+        throw new HttpsError('internal', 'An unexpected error occurred.');
+    }
+});
+
+exports.requestWhatsAppConnection = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'You must be logged in to make this request.');
+    }
+    const agentId = request.auth.uid;
+    try {
+        const userDocRef = firestore.collection('users').doc(agentId);
+        await userDocRef.update({ whatsappConnectionStatus: 'pending' });
+        logger.log(`User ${agentId} has requested a WhatsApp connection.`);
+        return { success: true, message: "Request sent successfully." };
+    } catch (error) {
+        logger.error("Error requesting WhatsApp connection:", error);
         throw new HttpsError('internal', 'An unexpected error occurred.');
     }
 });
