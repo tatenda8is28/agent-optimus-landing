@@ -10,17 +10,19 @@
 .form-card { background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; }
 .form-card + .form-card { margin-top: 24px; }
 .form-card label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
-.visual-workflow-container { position: relative; display: flex; width: 100%; height: 70vh; }
+.visual-workflow-container { position: relative; display: flex; width: 100%; height: 75vh; gap: 24px; }
 .visual-workflow-builder { flex-grow: 1; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; }
-.side-panel { width: 350px; flex-shrink: 0; margin-left: 24px; background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.08); animation: slideIn 0.3s ease-out; }
+.nodes-panel { width: 240px; flex-shrink: 0; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; }
+.nodes-panel h3 { margin: 0 0 16px; font-size: 16px; }
+.node-item { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 10px; cursor: grab; font-weight: 500; }
+.node-item:active { cursor: grabbing; }
+.side-panel { width: 350px; flex-shrink: 0; background-color: var(--bg-white); border: 1px solid var(--border-color); border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.08); animation: slideIn 0.3s ease-out; }
 @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .side-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
 .side-panel-header h3 { margin: 0; font-size: 16px; color: var(--ink); }
 .close-panel-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--ink-light); line-height: 1; }
-.close-panel-btn:hover { color: var(--ink); }
 .side-panel-content { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
-.side-panel-content textarea { width: 100%; flex-grow: 1; border-radius: 8px; border: 1px solid var(--border-color); padding: 12px; font-family: var(--font-main); font-size: 14px; resize: none; }
-.side-panel-content textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+.side-panel-content textarea { width: 100%; flex-grow: 1; border-radius: 8px; border: 1px solid var(--border-color); padding: 12px; font-size: 14px; resize: none; }
 .side-panel-content .btn-primary { margin-top: 16px; }
 .react-flow__node { background: var(--bg-white); border: 2px solid var(--border-color); border-radius: 8px; padding: 15px 20px; font-family: var(--font-main); color: var(--ink); font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.08); cursor: pointer; transition: all 0.2s ease; }
 .react-flow__node:hover { border-color: var(--green); }
@@ -31,11 +33,8 @@
 .react-flow__handle { background: #cbd5e1; border: 2px solid var(--bg-white); }
 .react-flow__controls { box-shadow: none !important; }
 .react-flow__controls-button { background-color: var(--bg-white); border: 1px solid var(--border-color); }
-.react-flow__controls-button:hover { background-color: var(--bg-light); }
-.knowledge-editor textarea { width: 100%; min-height: 400px; border: 1px solid var(--border-color); padding: 24px; border-radius: 12px; font-family: var(--font-main); font-size: 16px; line-height: 1.7; resize: vertical; }
-.knowledge-editor textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+.knowledge-editor textarea { width: 100%; min-height: 400px; border: 1px solid var(--border-color); padding: 24px; border-radius: 12px; font-size: 16px; line-height: 1.7; resize: vertical; }
 input[type="range"].personality-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 8px; outline: none; margin-top: 8px; }
 input[type="range"].personality-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--green); cursor: pointer; border-radius: 50%; }
-input[type="range"].personality-slider::-moz-range-thumb { width: 20px; height: 20px; background: var(--green); cursor: pointer; border-radius: 50%; border: none; }
 .slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-light); margin-top: 8px; }
 .dnc-textarea { min-height: 200px; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 14px; resize: vertical; }
