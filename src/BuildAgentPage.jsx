@@ -27,7 +27,9 @@ export default function BuildAgentPage() {
             const userRef = doc(db, 'users', user.uid);
             const [playbookSnap, userSnap] = await Promise.all([getDoc(playbookRef), getDoc(userRef)]);
             
-            if (playbookSnap.exists()) { setPlaybookData(playbookSnap.data()); }
+            if (playbookSnap.exists() && playbookSnap.data().nodes?.length > 0) {
+                setPlaybookData(playbookSnap.data());
+            }
             if (userSnap.exists()) {
                 const data = userSnap.data();
                 setKnowledgeBase(data.knowledgeDocument || defaultKnowledgeBase);

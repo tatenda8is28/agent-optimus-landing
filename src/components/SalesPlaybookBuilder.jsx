@@ -1,11 +1,34 @@
-// src/components/SalesPlaybookBuilder.jsx (FINAL, INTERACTIVE VERSION)
+// src/components/SalesPlaybookBuilder.jsx
 import { useState, useCallback, useEffect } from 'react';
-import ReactFlow, { ReactFlowProvider, Controls, Background, applyNodeChanges, applyEdgeChanges, addEdge, useReactFlow } from 'reactflow';
+import ReactFlow, { ReactFlowProvider, Controls, Background, applyNodeChanges, applyEdgeChanges, addEdge, useReactFlow, MarkerType } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../BuildAgentPage.css';
 
-const initialNodes = [ { id: '1', type: 'input', data: { label: 'Start: New Lead Inquiry' }, position: { x: 50, y: 5 } }, { id: '2', data: { label: 'Message 1: Initial Offer' }, position: { x: 50, y: 125 } }, ];
-const initialEdges = [ { id: 'e1-2', source: '1', target: '2', animated: true, type: 'smoothstep' } ];
+const initialNodes = [
+    { id: '1', type: 'input', data: { label: 'Message Received on WhatsApp' }, position: { x: 250, y: 0 } },
+    { id: '2', data: { label: 'BotManager: Multi-Tenant Router' }, position: { x: 250, y: 100 } },
+    { id: '3', data: { label: 'Identify Tenant by Number' }, position: { x: 250, y: 200 } },
+    { id: '4', data: { label: 'Fetch Tenant Config (from Firebase)' }, position: { x: 250, y: 300 } },
+    { id: '5', data: { label: 'MainAgent: Intent Dispatcher' }, position: { x: 250, y: 400 } },
+    { id: '6', type: 'default', data: { label: 'Determine User Intent' }, position: { x: 250, y: 500 } },
+    { id: '7', data: { label: 'PropertyAgent' }, position: { x: 50, y: 625 } },
+    { id: '8', data: { label: 'LeadAgent' }, position: { x: 250, y: 625 } },
+    { id: '9', data: { label: 'BookingAgent' }, position: { x: 450, y: 625 } },
+    { id: '10', type: 'output', data: { label: 'Formulate & Send Reply' }, position: { x: 250, y: 750 } },
+];
+const initialEdges = [
+    { id: 'e1-2', source: '1', target: '2', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e2-3', source: '2', target: '3', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e3-4', source: '3', target: '4', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e4-5', source: '4', target: '5', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e5-6', source: '5', target: '6', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e6-7', source: '6', target: '7', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, label: 'Search' },
+    { id: 'e6-8', source: '6', target: '8', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, label: 'New Lead' },
+    { id: 'e6-9', source: '6', target: '9', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, label: 'Booking' },
+    { id: 'e7-10', source: '7', target: '10', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e8-10', source: '8', target: '10', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+    { id: 'e9-10', source: '9', target: '10', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } },
+];
 
 const SidePanel = ({ node, onSave, onClose }) => {
     const [content, setContent] = useState(node.data.content || '');
@@ -27,8 +50,8 @@ const NodesPanel = ({ onDragStart }) => (
 );
 
 const SalesPlaybookBuilder = ({ playbookData, onPlaybookChange }) => {
-    const [nodes, setNodes] = useState(playbookData.nodes || initialNodes);
-    const [edges, setEdges] = useState(playbookData.edges || initialEdges);
+    const [nodes, setNodes] = useState(playbookData.nodes && playbookData.nodes.length > 0 ? playbookData.nodes : initialNodes);
+    const [edges, setEdges] = useState(playbookData.edges && playbookData.edges.length > 0 ? playbookData.edges : initialEdges);
     const [selectedNode, setSelectedNode] = useState(null);
     const reactFlowInstance = useReactFlow();
 
@@ -36,7 +59,7 @@ const SalesPlaybookBuilder = ({ playbookData, onPlaybookChange }) => {
 
     const onNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
     const onEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
-    const onConnect = useCallback((connection) => setEdges((eds) => addEdge({ ...connection, animated: true, type: 'smoothstep' }, eds)), []);
+    const onConnect = useCallback((connection) => setEdges((eds) => addEdge({ ...connection, animated: true, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } }, eds)), []);
     
     const handleNodeClick = (event, node) => setSelectedNode(node);
     const handleNodeSave = (nodeId, newContent) => {
@@ -64,7 +87,7 @@ const SalesPlaybookBuilder = ({ playbookData, onPlaybookChange }) => {
                     onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
                     onConnect={onConnect} onNodeClick={handleNodeClick} onInit={(instance) => setReactFlowInstance(instance)}
                     fitView
-                    deleteKeyCode={['Backspace', 'Delete']} // Enable delete key
+                    deleteKeyCode={['Backspace', 'Delete']}
                 >
                     <Controls /><Background variant="dots" />
                 </ReactFlow>

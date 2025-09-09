@@ -33,6 +33,7 @@
 .react-flow__node-input { background-color: var(--green-light); border-color: var(--green); color: var(--green-dark); }
 .react-flow__node-output { background-color: #f1f5f9; border-color: #cbd5e1; color: #475569; }
 .react-flow__edge-path { stroke: #94a3b8; stroke-width: 2; }
+.react-flow__edge-text { font-size: 12px; fill: #64748b; font-weight: 500; }
 .react-flow__handle { background: #cbd5e1; border: 2px solid var(--bg-white); }
 .react-flow__controls { box-shadow: none !important; }
 .react-flow__controls-button { background-color: var(--bg-white); border: 1px solid var(--border-color); }
@@ -41,10 +42,3 @@ input[type="range"].personality-slider { -webkit-appearance: none; appearance: n
 input[type="range"].personality-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--green); cursor: pointer; border-radius: 50%; }
 .slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-light); margin-top: 8px; }
 .dnc-textarea { min-height: 200px; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 14px; resize: vertical; }
-/* --- THIS IS THE CRITICAL FIX --- */
-.react-flow__edge {
-    z-index: 10;
-}
-.react-flow__connection-line {
-    z-index: 10;
-}
