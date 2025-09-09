@@ -41,3 +41,10 @@ input[type="range"].personality-slider { -webkit-appearance: none; appearance: n
 input[type="range"].personality-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--green); cursor: pointer; border-radius: 50%; }
 .slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-light); margin-top: 8px; }
 .dnc-textarea { min-height: 200px; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 14px; resize: vertical; }
+/* --- THIS IS THE CRITICAL FIX --- */
+.react-flow__edge {
+    z-index: 10;
+}
+.react-flow__connection-line {
+    z-index: 10;
+}
