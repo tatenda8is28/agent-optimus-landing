@@ -3,11 +3,99 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
-import { collection, query, where, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
 import './LeadsPage.css';
 
-// --- Reusable Components ---
+// --- Context Summary Modal ---
+const ContextSummaryModal = ({ lead, onConfirm, onCancel }) => {
+    const getLeadScore = (lead) => {
+        let score = 0;
+        if (lead.financial_position) score += 30;
+        if (lead.timeline) score += 30;
+        if (lead.preferences) score += 20;
+        if (lead.status === 'Viewing Booked') score += 20;
+        return score;
+    };
 
+    const score = getLeadScore(lead);
+    const scoreEmoji = score >= 80 ? '🔥' : score >= 50 ? '⭐' : '🧊';
+    const lastUserMessage = lead.conversation?.filter(m => m.role === 'user').slice(-1)[0];
+
+    return (
+        <div className="modal-overlay" onClick={onCancel}>
+            <div className="modal-content context-summary-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="modal-close-btn" onClick={onCancel}>&times;</button>
+                
+                <h2>📋 Conversation Summary</h2>
+                <p style={{color: 'var(--ink-light)', marginBottom: '24px'}}>Review lead details before taking over</p>
+                
+                <div className="context-summary">
+                    <div className="summary-section">
+                        <h3>Lead Information</h3>
+                        <div className="info-grid">
+                            <div className="info-item">
+                                <span className="info-label">Name</span>
+                                <span className="info-value">{lead.name || 'Unknown'}</span>
+                            </div>
+                            <div className="info-item">
+                                <span className="info-label">Contact</span>
+                                <span className="info-value">{lead.contact}</span>
+                            </div>
+                            <div className="info-item">
+                                <span className="info-label">💰 Budget</span>
+                                <span className="info-value">{lead.financial_position || 'Not specified'}</span>
+                            </div>
+                            <div className="info-item">
+                                <span className="info-label">📅 Timeline</span>
+                                <span className="info-value">{lead.timeline || 'Not specified'}</span>
+                            </div>
+                            <div className="info-item">
+                                <span className="info-label">🏠 Preferences</span>
+                                <span className="info-value">{lead.preferences || 'Not specified'}</span>
+                            </div>
+                            <div className="info-item">
+                                <span className="info-label">🎯 Lead Score</span>
+                                <span className="info-value">{score}/100 {scoreEmoji}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="summary-section">
+                        <h3>📌 AI Actions Taken</h3>
+                        <ul className="ai-actions-list">
+                            <li>✅ {lead.conversation?.length || 0} messages exchanged</li>
+                            {lead.financial_position && <li>✅ Lead qualified (Budget identified)</li>}
+                            {lead.timeline && <li>✅ Timeline confirmed</li>}
+                            {lead.status === 'Viewing Booked' && <li>✅ Viewing scheduled</li>}
+                            {!lead.financial_position && !lead.timeline && <li>⏳ Qualification in progress</li>}
+                        </ul>
+                    </div>
+
+                    {lastUserMessage && (
+                        <div className="summary-section last-message-section">
+                            <h3>💬 Last User Message</h3>
+                            <div className="last-message-box">
+                                <p>{lastUserMessage.content}</p>
+                                <span className="last-message-time">
+                                    {lastUserMessage.timestamp?.toDate().toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="modal-actions">
+                    <button className="btn btn-outline" onClick={onCancel}>Cancel</button>
+                    <button className="btn btn-primary" onClick={onConfirm}>
+                        Take Over Conversation →
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Lead Detail Modal ---
 const LeadDetailModal = ({ lead, onClose }) => {
     if (!lead) return null;
     const [activeMobileTab, setActiveMobileTab] = useState('profile');
@@ -52,6 +140,7 @@ const LeadDetailModal = ({ lead, onClose }) => {
     );
 };
 
+// --- Pipeline View ---
 const PipelineView = ({ leads, onSelectLead }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -111,16 +200,20 @@ const PipelineView = ({ leads, onSelectLead }) => {
     );
 };
 
+// --- Inbox View with Message Input ---
 const InboxView = ({ leads, onSelectLead }) => {
     const { user } = useAuth();
     const [selectedConv, setSelectedConv] = useState(null);
     const [isUpdatingMode, setIsUpdatingMode] = useState(false);
+    const [showContextModal, setShowContextModal] = useState(false);
+    const [messageInput, setMessageInput] = useState('');
+    const [isSending, setIsSending] = useState(false);
     
     useEffect(() => { 
         if (leads.length > 0 && !selectedConv) { 
             setSelectedConv(leads[0]); 
         }
-        // Update selectedConv when leads data changes (from onSnapshot)
+        // Update selectedConv when leads data changes
         if (selectedConv) {
             const updatedLead = leads.find(l => l.id === selectedConv.id);
             if (updatedLead) {
@@ -129,110 +222,206 @@ const InboxView = ({ leads, onSelectLead }) => {
         }
     }, [leads]);
 
-    const handleModeToggle = async () => {
+    const handleTakeOverClick = () => {
+        setShowContextModal(true);
+    };
+
+    const confirmTakeOver = async () => {
         if (!selectedConv) return;
         
+        setShowContextModal(false);
         setIsUpdatingMode(true);
+        
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
-            const currentMode = selectedConv.conversationMode || 'ai'; // Default to 'ai' if undefined
-            const newMode = currentMode === 'ai' ? 'manual' : 'ai';
             
             const updateData = {
-                conversationMode: newMode,
-                takenOverBy: newMode === 'manual' ? user.uid : null,
-                takenOverAt: newMode === 'manual' ? Timestamp.now() : null,
-                lastContactAt: Timestamp.now()
+                conversationMode: 'manual',
+                takenOverBy: user.uid,
+                takenOverAt: Timestamp.now(),
+                lastContactAt: Timestamp.now(),
+                conversation: arrayUnion({
+                    role: 'system',
+                    content: '👤 Agent took over the conversation',
+                    timestamp: Timestamp.now()
+                })
             };
 
             await updateDoc(leadRef, updateData);
-
-            console.log(`✅ Conversation mode toggled to: ${newMode}`);
+            console.log(`✅ Took over conversation`);
             
-            // The onSnapshot listener will automatically update the UI
         } catch (error) {
-            console.error("❌ Error toggling mode:", error);
-            
-            // Show detailed error
-            if (error.code === 'permission-denied') {
-                alert("Permission denied. Please update your Firestore security rules to allow lead updates.");
-            } else if (error.code === 'not-found') {
-                alert("Lead document not found.");
-            } else {
-                alert(`Failed to toggle mode: ${error.message}`);
-            }
+            console.error("❌ Error taking over:", error);
+            alert(`Failed to take over: ${error.message}`);
         } finally {
             setIsUpdatingMode(false);
         }
     };
 
+    const handleResumeAI = async () => {
+        if (!selectedConv) return;
+        
+        setIsUpdatingMode(true);
+        try {
+            const leadRef = doc(db, 'leads', selectedConv.id);
+            
+            const updateData = {
+                conversationMode: 'ai',
+                takenOverBy: null,
+                takenOverAt: null,
+                lastContactAt: Timestamp.now(),
+                conversation: arrayUnion({
+                    role: 'system',
+                    content: '🤖 AI agent resumed the conversation',
+                    timestamp: Timestamp.now()
+                })
+            };
+
+            await updateDoc(leadRef, updateData);
+            console.log(`✅ AI resumed`);
+            
+        } catch (error) {
+            console.error("❌ Error resuming AI:", error);
+            alert(`Failed to resume AI: ${error.message}`);
+        } finally {
+            setIsUpdatingMode(false);
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!messageInput.trim() || !selectedConv || isSending) return;
+
+        setIsSending(true);
+        try {
+            const leadRef = doc(db, 'leads', selectedConv.id);
+            
+            await updateDoc(leadRef, {
+                conversation: arrayUnion({
+                    role: 'agent',
+                    content: messageInput.trim(),
+                    timestamp: Timestamp.now(),
+                    sentBy: user.email
+                }),
+                lastContactAt: Timestamp.now()
+            });
+
+            setMessageInput('');
+            console.log('✅ Message sent');
+            
+            // Note: In production, this should also trigger WhatsApp API to send the message
+            
+        } catch (error) {
+            console.error('❌ Error sending message:', error);
+            alert('Failed to send message. Please try again.');
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    };
+
+    const isManualMode = (selectedConv?.conversationMode || 'ai') === 'manual';
+
     return (
-        <div className={`inbox-view ${selectedConv ? 'show-chat' : ''}`}>
-            <div className="inbox-list-pane">
-                <div className="inbox-header">
-                    <input type="text" placeholder="Search conversations..." className="inbox-search" />
-                </div>
-                <div className="conversation-items">
-                    {leads.map(lead => {
-                        const mode = lead.conversationMode || 'ai';
-                        return (
-                            <div 
-                                key={lead.id} 
-                                className={`conversation-item ${selectedConv?.id === lead.id ? 'active' : ''}`} 
-                                onClick={() => setSelectedConv(lead)}
-                            >
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
-                                    <p className="item-name">{lead.name || lead.contact}</p>
-                                    <span style={{fontSize: '18px'}}>{mode === 'manual' ? '👤' : '🤖'}</span>
+        <>
+            <div className={`inbox-view ${selectedConv ? 'show-chat' : ''}`}>
+                <div className="inbox-list-pane">
+                    <div className="inbox-header">
+                        <input type="text" placeholder="Search conversations..." className="inbox-search" />
+                    </div>
+                    <div className="conversation-items">
+                        {leads.map(lead => {
+                            const mode = lead.conversationMode || 'ai';
+                            return (
+                                <div 
+                                    key={lead.id} 
+                                    className={`conversation-item ${selectedConv?.id === lead.id ? 'active' : ''}`} 
+                                    onClick={() => setSelectedConv(lead)}
+                                >
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
+                                        <p className="item-name">{lead.name || lead.contact}</p>
+                                        <span style={{fontSize: '18px'}}>{mode === 'manual' ? '👤' : '🤖'}</span>
+                                    </div>
+                                    <p className="item-snippet">
+                                        {lead.conversation?.slice(-1)[0]?.content?.substring(0, 40) || 'No messages'}...
+                                    </p>
                                 </div>
-                                <p className="item-snippet">
-                                    {lead.conversation?.slice(-1)[0]?.content?.substring(0, 40) || 'No messages'}...
-                                </p>
+                            );
+                        })}
+                    </div>
+                </div>
+                
+                <div className="inbox-chat-pane">
+                    {selectedConv && (
+                        <>
+                            <button className="back-to-list-btn" onClick={() => setSelectedConv(null)}>← Back</button>
+                            
+                            {/* Mode Toggle Banner */}
+                            <div className="mode-toggle-banner">
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                    <span style={{fontSize: '20px'}}>
+                                        {isManualMode ? '👤' : '🤖'}
+                                    </span>
+                                    <span style={{fontWeight: 600, color: 'var(--ink)'}}>
+                                        {isManualMode ? "You're Responding" : 'AI Active'}
+                                    </span>
+                                </div>
+                                <button 
+                                    className="btn btn-primary" 
+                                    onClick={isManualMode ? handleResumeAI : handleTakeOverClick} 
+                                    disabled={isUpdatingMode}
+                                    style={{minWidth: '120px'}}
+                                >
+                                    {isUpdatingMode ? 'Loading...' : (isManualMode ? 'Resume AI' : 'Take Over')}
+                                </button>
                             </div>
-                        );
-                    })}
+                            
+                            <ChatView lead={selectedConv} />
+
+                            {/* WhatsApp-Style Message Input - Only in Manual Mode */}
+                            {isManualMode && (
+                                <div className="whatsapp-input-container">
+                                    <textarea
+                                        className="whatsapp-input"
+                                        placeholder="Type a message..."
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        onKeyPress={handleKeyPress}
+                                        rows={1}
+                                        disabled={isSending}
+                                    />
+                                    <button 
+                                        className="whatsapp-send-btn" 
+                                        onClick={handleSendMessage}
+                                        disabled={!messageInput.trim() || isSending}
+                                    >
+                                        {isSending ? '...' : '➤'}
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
-            <div className="inbox-chat-pane">
-                {selectedConv && (
-                    <>
-                        <button className="back-to-list-btn" onClick={() => setSelectedConv(null)}>← Back</button>
-                        
-                        {/* AI/Manual Mode Toggle Banner */}
-                        <div style={{
-                            padding: '16px',
-                            borderBottom: '1px solid var(--border-color)',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            backgroundColor: 'var(--bg-light)'
-                        }}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                <span style={{fontSize: '20px'}}>
-                                    {(selectedConv.conversationMode || 'ai') === 'manual' ? '👤' : '🤖'}
-                                </span>
-                                <span style={{fontWeight: 600, color: 'var(--ink)'}}>
-                                    {(selectedConv.conversationMode || 'ai') === 'manual' ? "You're Responding" : 'AI Active'}
-                                </span>
-                            </div>
-                            <button 
-                                className="btn btn-primary" 
-                                onClick={handleModeToggle} 
-                                disabled={isUpdatingMode}
-                                style={{minWidth: '120px'}}
-                            >
-                                {isUpdatingMode ? 'Loading...' : ((selectedConv.conversationMode || 'ai') === 'manual' ? 'Resume AI' : 'Take Over')}
-                            </button>
-                        </div>
-                        
-                        <ChatView lead={selectedConv} />
-                    </>
-                )}
-            </div>
-        </div>
+
+            {/* Context Summary Modal */}
+            {showContextModal && selectedConv && (
+                <ContextSummaryModal 
+                    lead={selectedConv}
+                    onConfirm={confirmTakeOver}
+                    onCancel={() => setShowContextModal(false)}
+                />
+            )}
+        </>
     );
 };
 
+// --- Chat View ---
 const ChatView = ({ lead }) => {
     if (!lead) { 
         return (
@@ -261,6 +450,7 @@ const ChatView = ({ lead }) => {
     );
 };
 
+// --- Main Component ---
 export default function LeadsPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
