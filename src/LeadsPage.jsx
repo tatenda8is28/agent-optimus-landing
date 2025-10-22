@@ -1,4 +1,4 @@
-// src/LeadsPage.jsx
+// src/LeadsPage.jsx - COMPLETE WORKING VERSION
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -200,7 +200,7 @@ const PipelineView = ({ leads, onSelectLead }) => {
     );
 };
 
-// --- Inbox View with Message Input ---
+// --- Inbox View - FIXED VERSION ---
 const InboxView = ({ leads }) => {
     const { user } = useAuth();
     const [selectedConv, setSelectedConv] = useState(null);
@@ -209,12 +209,12 @@ const InboxView = ({ leads }) => {
     const [messageInput, setMessageInput] = useState('');
     const [isSending, setIsSending] = useState(false);
     const chatLogRef = useRef(null);
+    const textareaRef = useRef(null);
     
     useEffect(() => { 
         if (leads.length > 0 && !selectedConv) { 
             setSelectedConv(leads[0]); 
         }
-        // Update selectedConv when leads data changes
         if (selectedConv) {
             const updatedLead = leads.find(l => l.id === selectedConv.id);
             if (updatedLead) {
@@ -223,12 +223,18 @@ const InboxView = ({ leads }) => {
         }
     }, [leads]);
 
-    // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         if (chatLogRef.current) {
             chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
         }
     }, [selectedConv?.conversation]);
+
+    // Auto-focus input when switching to manual mode
+    useEffect(() => {
+        if (selectedConv?.conversationMode === 'manual' && textareaRef.current) {
+            textareaRef.current.focus();
+        }
+    }, [selectedConv?.conversationMode]);
 
     const handleTakeOverClick = () => {
         setShowContextModal(true);
@@ -255,10 +261,10 @@ const InboxView = ({ leads }) => {
                 })
             });
             
-            console.log(`✅ Took over conversation`);
+            console.log('✅ Agent took over - conversationMode set to "manual"');
             
         } catch (error) {
-            console.error("❌ Error taking over:", error);
+            console.error('❌ Error taking over:', error);
             alert(`Failed to take over: ${error.message}`);
         } finally {
             setIsUpdatingMode(false);
@@ -284,10 +290,10 @@ const InboxView = ({ leads }) => {
                 })
             });
             
-            console.log(`✅ AI resumed`);
+            console.log('✅ AI resumed - conversationMode set to "ai"');
             
         } catch (error) {
-            console.error("❌ Error resuming AI:", error);
+            console.error('❌ Error resuming AI:', error);
             alert(`Failed to resume AI: ${error.message}`);
         } finally {
             setIsUpdatingMode(false);
@@ -298,7 +304,7 @@ const InboxView = ({ leads }) => {
         if (!messageInput.trim() || !selectedConv || isSending) return;
 
         const messageToSend = messageInput.trim();
-        setMessageInput(''); // Clear input immediately for better UX
+        setMessageInput('');
         setIsSending(true);
         
         try {
@@ -314,18 +320,20 @@ const InboxView = ({ leads }) => {
                 lastContactAt: Timestamp.now()
             });
 
-            console.log('✅ Message sent');
+            console.log('✅ Message sent:', messageToSend);
+            
+            // In production, this should also trigger WhatsApp API to send the message
             
         } catch (error) {
             console.error('❌ Error sending message:', error);
             alert('Failed to send message. Please try again.');
-            setMessageInput(messageToSend); // Restore message on error
+            setMessageInput(messageToSend);
         } finally {
             setIsSending(false);
         }
     };
 
-    const handleKeyPress = (e) => {
+    const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage();
@@ -406,15 +414,16 @@ const InboxView = ({ leads }) => {
                                 </div>
                             </div>
 
-                            {/* WhatsApp-Style Message Input - Only in Manual Mode */}
+                            {/* WhatsApp Input - Shows ONLY when in Manual Mode */}
                             {isManualMode && (
                                 <div className="whatsapp-input-container">
                                     <textarea
+                                        ref={textareaRef}
                                         className="whatsapp-input"
                                         placeholder="Type a message..."
                                         value={messageInput}
                                         onChange={(e) => setMessageInput(e.target.value)}
-                                        onKeyPress={handleKeyPress}
+                                        onKeyDown={handleKeyDown}
                                         rows={1}
                                         disabled={isSending}
                                     />
@@ -427,6 +436,15 @@ const InboxView = ({ leads }) => {
                                     </button>
                                 </div>
                             )}
+
+                            {/* Debug Info - Remove this after testing */}
+                            {process.env.NODE_ENV === 'development' && (
+                                <div style={{padding: '8px', background: '#f0f0f0', fontSize: '11px', borderTop: '1px solid #ccc'}}>
+                                    Mode: {selectedConv.conversationMode || 'ai'} | 
+                                    Is Manual: {isManualMode ? 'YES' : 'NO'} | 
+                                    Show Input: {isManualMode ? 'YES' : 'NO'}
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="chat-view-placeholder">
@@ -436,7 +454,6 @@ const InboxView = ({ leads }) => {
                 </div>
             </div>
 
-            {/* Context Summary Modal */}
             {showContextModal && selectedConv && (
                 <ContextSummaryModal 
                     lead={selectedConv}
