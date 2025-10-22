@@ -1,176 +1,76 @@
-// src/LeadsPage.jsx (SIMPLIFIED WORKING VERSION)
-import { useState, useEffect } from 'react';
+// src/LeadsPage.jsx
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
-import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import './LeadsPage.css';
 
-const ConversationModeToggle = ({ lead, onToggle, isUpdating }) => {
-    const isAIActive = lead.conversationMode !== 'manual';
-    
-    return (
-        <div className="mode-toggle-container">
-            <div className={`mode-indicator ${isAIActive ? 'ai-active' : 'manual-active'}`}>
-                <span className="mode-icon">{isAIActive ? '🤖' : '👤'}</span>
-                <span className="mode-text">{isAIActive ? 'AI Active' : "You're Responding"}</span>
-            </div>
-            <button 
-                className={`btn ${isAIActive ? 'btn-primary' : 'btn-outline'}`}
-                onClick={onToggle}
-                disabled={isUpdating}
-            >
-                {isUpdating ? '...' : (isAIActive ? 'Take Over' : 'Resume AI')}
-            </button>
-        </div>
-    );
-};
+// --- Reusable Components ---
 
-const InboxView = ({ leads }) => {
-    const { user } = useAuth();
-    const [selectedLead, setSelectedLead] = useState(null);
-    const [isUpdatingMode, setIsUpdatingMode] = useState(false);
-    const [messageInput, setMessageInput] = useState('');
-
-    useEffect(() => {
-        if (leads.length > 0 && !selectedLead) {
-            setSelectedLead(leads[0]);
-        }
-    }, [leads, selectedLead]);
-
-    const handleModeToggle = async () => {
-        if (!selectedLead) return;
-        
-        setIsUpdatingMode(true);
-        try {
-            const leadRef = doc(db, 'leads', selectedLead.id);
-            const isCurrentlyAI = selectedLead.conversationMode !== 'manual';
-            const newMode = isCurrentlyAI ? 'manual' : 'ai';
-
-            await updateDoc(leadRef, {
-                conversationMode: newMode,
-                takenOverBy: isCurrentlyAI ? user.uid : null,
-                takenOverAt: isCurrentlyAI ? Timestamp.now() : null,
-                conversation: arrayUnion({
-                    role: 'system',
-                    content: isCurrentlyAI ? '👤 Agent took over' : '🤖 AI resumed',
-                    timestamp: Timestamp.now()
-                })
-            });
-
-            // Update local state
-            setSelectedLead({...selectedLead, conversationMode: newMode});
-        } catch (error) {
-            console.error("Error toggling mode:", error);
-            alert("Failed to toggle mode.");
-        } finally {
-            setIsUpdatingMode(false);
-        }
-    };
-
-    const handleSendMessage = async () => {
-        if (!messageInput.trim() || !selectedLead) return;
-
-        try {
-            const leadRef = doc(db, 'leads', selectedLead.id);
-            await updateDoc(leadRef, {
-                conversation: arrayUnion({
-                    role: 'agent',
-                    content: messageInput,
-                    timestamp: Timestamp.now()
-                }),
-                lastContactAt: Timestamp.now()
-            });
-            setMessageInput('');
-        } catch (error) {
-            console.error("Error sending message:", error);
-        }
-    };
-
-    const isManualMode = selectedLead?.conversationMode === 'manual';
+const LeadDetailModal = ({ lead, onClose }) => {
+    if (!lead) return null;
+    const [activeMobileTab, setActiveMobileTab] = useState('profile');
 
     return (
-        <div className="inbox-view">
-            <div className="conversation-list">
-                <div className="inbox-header">
-                    <input type="text" placeholder="Search..." className="inbox-search" />
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content lead-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="modal-close-btn" onClick={onClose}>&times;</button>
+                
+                <div className="mobile-modal-tabs">
+                    <button onClick={() => setActiveMobileTab('profile')} className={activeMobileTab === 'profile' ? 'active' : ''}>Profile</button>
+                    <button onClick={() => setActiveMobileTab('conversation')} className={activeMobileTab === 'conversation' ? 'active' : ''}>Conversation</button>
                 </div>
-                <div className="conversation-items">
-                    {leads.map(lead => (
-                        <div 
-                            key={lead.id} 
-                            className={`conversation-item ${selectedLead?.id === lead.id ? 'active' : ''}`}
-                            onClick={() => setSelectedLead(lead)}
-                        >
-                            <div className="conversation-item-header">
-                                <p className="item-name">{lead.name || lead.contact}</p>
-                                <span className={`mini-mode-badge ${lead.conversationMode === 'manual' ? 'manual' : 'ai'}`}>
-                                    {lead.conversationMode === 'manual' ? '👤' : '🤖'}
-                                </span>
-                            </div>
-                            <p className="item-snippet">
-                                {lead.conversation?.[lead.conversation.length - 1]?.content?.substring(0, 40) || 'No messages'}...
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            </div>
 
-            <div className="chat-view">
-                {selectedLead ? (
-                    <>
-                        <div className="chat-mode-banner">
-                            <ConversationModeToggle 
-                                lead={selectedLead}
-                                onToggle={handleModeToggle}
-                                isUpdating={isUpdatingMode}
-                            />
-                        </div>
-                        
-                        <div className="chat-view-header">
-                            <h3>Conversation with {selectedLead.name}</h3>
-                        </div>
-                        
+                <div className={`lead-modal-grid mobile-view-${activeMobileTab}`}>
+                    <div className="lead-profile-section">
+                        <h2>Lead Profile</h2>
+                        <p><strong>Name:</strong> {lead.name}</p>
+                        <p><strong>Contact:</strong> {lead.contact}</p>
+                        <p><strong>Email:</strong> {lead.email || 'N/A'}</p>
+                        <hr /><h3>Initial Inquiry</h3>
+                        <p><strong>Property URL:</strong> <a href={lead.propertyUrl} target="_blank" rel="noopener noreferrer">View Listing</a></p>
+                        <hr /><h3>Qualification</h3>
+                        <p><strong>Timeline:</strong> {lead.timeline || 'N/A'}</p>
+                        <p><strong>Finance:</strong> {lead.financial_position || 'N/A'}</p>
+                        <p><strong>Preferences:</strong> {lead.preferences || 'N/A'}</p>
+                    </div>
+                    <div className="conversation-log-section">
+                        <h2>Conversation Log</h2>
                         <div className="conversation-log">
-                            {selectedLead.conversation?.map((msg, index) => (
+                            {lead.conversation?.map((msg, index) => (
                                 <div key={index} className={`chat-bubble ${msg.role}`}>
                                     {msg.content}
-                                    <span className="chat-timestamp">
-                                        {msg.timestamp?.toDate?.().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) || ''}
-                                    </span>
+                                    <span className="chat-timestamp">{msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                 </div>
                             ))}
                         </div>
-
-                        {isManualMode && (
-                            <div className="message-input-container">
-                                <input 
-                                    type="text"
-                                    placeholder="Type your message..."
-                                    value={messageInput}
-                                    onChange={(e) => setMessageInput(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                    className="message-input"
-                                />
-                                <button className="btn btn-primary" onClick={handleSendMessage}>Send</button>
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <div className="chat-view-placeholder">
-                        <p>Select a conversation from the left</p>
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );
 };
 
-const PipelineView = ({ leads }) => {
+const PipelineView = ({ leads, onSelectLead }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+
+    const filteredLeads = useMemo(() => {
+        return leads.filter(lead => {
+            const matchesStatus = statusFilter === 'All' || lead.status === statusFilter;
+            const matchesSearch = searchTerm === '' || 
+                lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                lead.contact?.toLowerCase().includes(searchTerm.toLowerCase());
+            return matchesStatus && matchesSearch;
+        });
+    }, [leads, searchTerm, statusFilter]);
+
     return (
         <div className="pipeline-view">
             <div className="pipeline-controls">
-                <input type="text" placeholder="Search leads..." className="filter-search-input" />
-                <select className="filter-select">
+                <input type="text" placeholder="Search leads..." className="filter-search-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                     <option value="All">All Statuses</option>
                     <option value="New Inquiry">New Inquiry</option>
                     <option value="Contacted">Contacted</option>
@@ -178,25 +78,13 @@ const PipelineView = ({ leads }) => {
             </div>
             <div className="table-wrapper">
                 <table className="leads-table">
-                    <thead>
-                        <tr>
-                            <th>Lead</th>
-                            <th>Status</th>
-                            <th>Last Contact</th>
-                            <th>Timeline</th>
-                            <th>Finance</th>
-                            <th>Preference</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Lead</th><th>Status</th><th>Last Contact</th><th>Timeline</th><th>Finance</th><th>Preference</th></tr></thead>
                     <tbody>
-                        {leads.map(lead => (
-                            <tr key={lead.id}>
-                                <td>
-                                    <div className="lead-name-cell">{lead.name}</div>
-                                    <div className="lead-contact-cell">{lead.contact}</div>
-                                </td>
+                        {filteredLeads.map(lead => (
+                            <tr key={lead.id} onClick={() => onSelectLead(lead)}>
+                                <td><div className="lead-name-cell">{lead.name}</div><div className="lead-contact-cell">{lead.contact}</div></td>
                                 <td><span className={`status-pill status-${lead.status?.replace(' ', '-')}`}>{lead.status}</span></td>
-                                <td>{lead.lastContactAt?.toDate?.().toLocaleDateString() || 'N/A'}</td>
+                                <td>{lead.lastContactAt?.toDate().toLocaleDateString()}</td>
                                 <td>{lead.timeline || '--'}</td>
                                 <td>{lead.financial_position || '--'}</td>
                                 <td className="preference-cell">{lead.preferences || '--'}</td>
@@ -205,44 +93,181 @@ const PipelineView = ({ leads }) => {
                     </tbody>
                 </table>
             </div>
+             <div className="mobile-card-list">
+                {filteredLeads.map(lead => (
+                    <div className="lead-row-card" key={lead.id} onClick={() => onSelectLead(lead)}>
+                        <div className="lead-card-header">
+                            <p className="lead-name">{lead.name}</p>
+                            <span className={`status-pill status-${lead.status?.replace(' ', '-')}`}>{lead.status}</span>
+                        </div>
+                        <div className="lead-details">
+                            <div className="lead-detail-item"><span>Finance</span><span>{lead.financial_position || '--'}</span></div>
+                            <div className="lead-detail-item"><span>Timeline</span><span>{lead.timeline || '--'}</span></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const InboxView = ({ leads, onSelectLead }) => {
+    const { user } = useAuth();
+    const [selectedConv, setSelectedConv] = useState(null);
+    const [isUpdatingMode, setIsUpdatingMode] = useState(false);
+    
+    useEffect(() => { 
+        if (leads.length > 0 && !selectedConv) { 
+            setSelectedConv(leads[0]); 
+        } 
+    }, [leads, selectedConv]);
+
+    const handleModeToggle = async () => {
+        if (!selectedConv) return;
+        
+        setIsUpdatingMode(true);
+        try {
+            const leadRef = doc(db, 'leads', selectedConv.id);
+            const isAI = selectedConv.conversationMode !== 'manual';
+            
+            await updateDoc(leadRef, {
+                conversationMode: isAI ? 'manual' : 'ai',
+                takenOverBy: isAI ? user.uid : null,
+                takenOverAt: isAI ? Timestamp.now() : null
+            });
+
+            // Update local state immediately
+            setSelectedConv({
+                ...selectedConv,
+                conversationMode: isAI ? 'manual' : 'ai'
+            });
+        } catch (error) {
+            console.error("Error toggling mode:", error);
+            alert("Failed to toggle conversation mode. Please try again.");
+        } finally {
+            setIsUpdatingMode(false);
+        }
+    };
+
+    return (
+        <div className={`inbox-view ${selectedConv ? 'show-chat' : ''}`}>
+            <div className="inbox-list-pane">
+                <div className="inbox-header">
+                    <input type="text" placeholder="Search conversations..." className="inbox-search" />
+                </div>
+                <div className="conversation-items">
+                    {leads.map(lead => (
+                        <div 
+                            key={lead.id} 
+                            className={`conversation-item ${selectedConv?.id === lead.id ? 'active' : ''}`} 
+                            onClick={() => setSelectedConv(lead)}
+                        >
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
+                                <p className="item-name">{lead.name || lead.contact}</p>
+                                <span style={{fontSize: '18px'}}>{lead.conversationMode === 'manual' ? '👤' : '🤖'}</span>
+                            </div>
+                            <p className="item-snippet">
+                                {lead.conversation?.slice(-1)[0]?.content?.substring(0, 40) || 'No messages'}...
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="inbox-chat-pane">
+                {selectedConv && (
+                    <>
+                        <button className="back-to-list-btn" onClick={() => setSelectedConv(null)}>← Back</button>
+                        
+                        {/* AI/Manual Mode Toggle Banner */}
+                        <div style={{
+                            padding: '16px',
+                            borderBottom: '1px solid var(--border-color)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            backgroundColor: 'var(--bg-light)'
+                        }}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <span style={{fontSize: '20px'}}>
+                                    {selectedConv.conversationMode === 'manual' ? '👤' : '🤖'}
+                                </span>
+                                <span style={{fontWeight: 600, color: 'var(--ink)'}}>
+                                    {selectedConv.conversationMode === 'manual' ? "You're Responding" : 'AI Active'}
+                                </span>
+                            </div>
+                            <button 
+                                className="btn btn-primary" 
+                                onClick={handleModeToggle} 
+                                disabled={isUpdatingMode}
+                                style={{minWidth: '120px'}}
+                            >
+                                {isUpdatingMode ? 'Loading...' : (selectedConv.conversationMode === 'manual' ? 'Resume AI' : 'Take Over')}
+                            </button>
+                        </div>
+                        
+                        <ChatView lead={selectedConv} />
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const ChatView = ({ lead }) => {
+    if (!lead) { 
+        return (
+            <div className="chat-view-placeholder">
+                <p>Select a conversation from the left.</p>
+            </div>
+        ); 
+    }
+    
+    return (
+        <div className="chat-view">
+            <div className="chat-view-header">
+                <h3>Conversation with {lead.name}</h3>
+            </div>
+            <div className="conversation-log">
+                {lead.conversation?.map((msg, index) => (
+                    <div key={index} className={`chat-bubble ${msg.role}`}>
+                        {msg.content}
+                        <span className="chat-timestamp">
+                            {msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
 
 export default function LeadsPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [leads, setLeads] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeView, setActiveView] = useState('inbox');
+    const [selectedLead, setSelectedLead] = useState(null);
 
     useEffect(() => {
         if (!user) return;
-
-        const fetchLeads = async () => {
-            try {
-                const leadsQuery = query(
-                    collection(db, 'leads'), 
-                    where('agentId', '==', user.uid)
-                );
-                const snapshot = await getDocs(leadsQuery);
-                const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                leadsData.sort((a, b) => {
-                    const aTime = a.lastContactAt?.toDate?.() || 0;
-                    const bTime = b.lastContactAt?.toDate?.() || 0;
-                    return bTime - aTime;
-                });
-                setLeads(leadsData);
-            } catch (error) {
-                console.error("Error fetching leads:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchLeads();
-        const interval = setInterval(fetchLeads, 5000); // Refresh every 5 seconds
-        return () => clearInterval(interval);
+        const leadsQuery = query(collection(db, 'leads'), where('agentId', '==', user.uid));
+        const unsubscribe = onSnapshot(leadsQuery, (snapshot) => {
+            const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            leadsData.sort((a, b) => (b.lastContactAt?.toDate() || 0) - (a.lastContactAt?.toDate() || 0));
+            setLeads(leadsData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
     }, [user]);
+
+    const handleSelectLead = (lead) => {
+        if (window.innerWidth <= 900) {
+            navigate(`/leads/${lead.id}`);
+        } else {
+            setSelectedLead(lead);
+        }
+    };
 
     if (isLoading) return <div style={{padding: '40px'}}>Loading leads...</div>;
 
@@ -258,9 +283,16 @@ export default function LeadsPage() {
                 </button>
             </div>
             <div className="tab-content-wrapper">
-                {activeView === 'inbox' && <InboxView leads={leads} />}
-                {activeView === 'pipeline' && <PipelineView leads={leads.filter(l => l.status !== 'Closed')} />}
+                {activeView === 'pipeline' && ( 
+                    <PipelineView leads={leads.filter(l => l.status !== 'Closed')} onSelectLead={handleSelectLead} /> 
+                )}
+                {activeView === 'inbox' && ( 
+                    <InboxView leads={leads} onSelectLead={handleSelectLead} /> 
+                )}
             </div>
+            {selectedLead && (
+                <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
+            )}
         </div>
     );
 }
