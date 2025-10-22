@@ -1,5 +1,5 @@
 // src/LeadsPage.jsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
@@ -26,8 +26,10 @@ const ContextSummaryModal = ({ lead, onConfirm, onCancel }) => {
             <div className="modal-content context-summary-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="modal-close-btn" onClick={onCancel}>&times;</button>
                 
-                <h2>📋 Conversation Summary</h2>
-                <p style={{color: 'var(--ink-light)', marginBottom: '24px'}}>Review lead details before taking over</p>
+                <h2 style={{marginBottom: '8px'}}>📋 Conversation Summary</h2>
+                <p style={{color: 'var(--ink-light)', marginBottom: '24px', fontSize: '14px'}}>
+                    Review lead details before taking over
+                </p>
                 
                 <div className="context-summary">
                     <div className="summary-section">
@@ -72,7 +74,7 @@ const ContextSummaryModal = ({ lead, onConfirm, onCancel }) => {
                     </div>
 
                     {lastUserMessage && (
-                        <div className="summary-section last-message-section">
+                        <div className="summary-section">
                             <h3>💬 Last User Message</h3>
                             <div className="last-message-box">
                                 <p>{lastUserMessage.content}</p>
@@ -116,8 +118,6 @@ const LeadDetailModal = ({ lead, onClose }) => {
                         <p><strong>Name:</strong> {lead.name}</p>
                         <p><strong>Contact:</strong> {lead.contact}</p>
                         <p><strong>Email:</strong> {lead.email || 'N/A'}</p>
-                        <hr /><h3>Initial Inquiry</h3>
-                        <p><strong>Property URL:</strong> <a href={lead.propertyUrl} target="_blank" rel="noopener noreferrer">View Listing</a></p>
                         <hr /><h3>Qualification</h3>
                         <p><strong>Timeline:</strong> {lead.timeline || 'N/A'}</p>
                         <p><strong>Finance:</strong> {lead.financial_position || 'N/A'}</p>
@@ -201,13 +201,14 @@ const PipelineView = ({ leads, onSelectLead }) => {
 };
 
 // --- Inbox View with Message Input ---
-const InboxView = ({ leads, onSelectLead }) => {
+const InboxView = ({ leads }) => {
     const { user } = useAuth();
     const [selectedConv, setSelectedConv] = useState(null);
     const [isUpdatingMode, setIsUpdatingMode] = useState(false);
     const [showContextModal, setShowContextModal] = useState(false);
     const [messageInput, setMessageInput] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const chatLogRef = useRef(null);
     
     useEffect(() => { 
         if (leads.length > 0 && !selectedConv) { 
@@ -222,6 +223,13 @@ const InboxView = ({ leads, onSelectLead }) => {
         }
     }, [leads]);
 
+    // Auto-scroll to bottom when new messages arrive
+    useEffect(() => {
+        if (chatLogRef.current) {
+            chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+        }
+    }, [selectedConv?.conversation]);
+
     const handleTakeOverClick = () => {
         setShowContextModal(true);
     };
@@ -235,7 +243,7 @@ const InboxView = ({ leads, onSelectLead }) => {
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
             
-            const updateData = {
+            await updateDoc(leadRef, {
                 conversationMode: 'manual',
                 takenOverBy: user.uid,
                 takenOverAt: Timestamp.now(),
@@ -245,9 +253,8 @@ const InboxView = ({ leads, onSelectLead }) => {
                     content: '👤 Agent took over the conversation',
                     timestamp: Timestamp.now()
                 })
-            };
-
-            await updateDoc(leadRef, updateData);
+            });
+            
             console.log(`✅ Took over conversation`);
             
         } catch (error) {
@@ -265,7 +272,7 @@ const InboxView = ({ leads, onSelectLead }) => {
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
             
-            const updateData = {
+            await updateDoc(leadRef, {
                 conversationMode: 'ai',
                 takenOverBy: null,
                 takenOverAt: null,
@@ -275,9 +282,8 @@ const InboxView = ({ leads, onSelectLead }) => {
                     content: '🤖 AI agent resumed the conversation',
                     timestamp: Timestamp.now()
                 })
-            };
-
-            await updateDoc(leadRef, updateData);
+            });
+            
             console.log(`✅ AI resumed`);
             
         } catch (error) {
@@ -291,28 +297,29 @@ const InboxView = ({ leads, onSelectLead }) => {
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !selectedConv || isSending) return;
 
+        const messageToSend = messageInput.trim();
+        setMessageInput(''); // Clear input immediately for better UX
         setIsSending(true);
+        
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
             
             await updateDoc(leadRef, {
                 conversation: arrayUnion({
                     role: 'agent',
-                    content: messageInput.trim(),
+                    content: messageToSend,
                     timestamp: Timestamp.now(),
                     sentBy: user.email
                 }),
                 lastContactAt: Timestamp.now()
             });
 
-            setMessageInput('');
             console.log('✅ Message sent');
-            
-            // Note: In production, this should also trigger WhatsApp API to send the message
             
         } catch (error) {
             console.error('❌ Error sending message:', error);
             alert('Failed to send message. Please try again.');
+            setMessageInput(messageToSend); // Restore message on error
         } finally {
             setIsSending(false);
         }
@@ -337,6 +344,7 @@ const InboxView = ({ leads, onSelectLead }) => {
                     <div className="conversation-items">
                         {leads.map(lead => {
                             const mode = lead.conversationMode || 'ai';
+                            const lastMsg = lead.conversation?.slice(-1)[0];
                             return (
                                 <div 
                                     key={lead.id} 
@@ -348,7 +356,7 @@ const InboxView = ({ leads, onSelectLead }) => {
                                         <span style={{fontSize: '18px'}}>{mode === 'manual' ? '👤' : '🤖'}</span>
                                     </div>
                                     <p className="item-snippet">
-                                        {lead.conversation?.slice(-1)[0]?.content?.substring(0, 40) || 'No messages'}...
+                                        {lastMsg?.content?.substring(0, 40) || 'No messages'}...
                                     </p>
                                 </div>
                             );
@@ -357,7 +365,7 @@ const InboxView = ({ leads, onSelectLead }) => {
                 </div>
                 
                 <div className="inbox-chat-pane">
-                    {selectedConv && (
+                    {selectedConv ? (
                         <>
                             <button className="back-to-list-btn" onClick={() => setSelectedConv(null)}>← Back</button>
                             
@@ -381,7 +389,22 @@ const InboxView = ({ leads, onSelectLead }) => {
                                 </button>
                             </div>
                             
-                            <ChatView lead={selectedConv} />
+                            {/* Chat Messages */}
+                            <div className="chat-view">
+                                <div className="chat-view-header">
+                                    <h3>Conversation with {selectedConv.name}</h3>
+                                </div>
+                                <div className="conversation-log" ref={chatLogRef}>
+                                    {selectedConv.conversation?.map((msg, index) => (
+                                        <div key={index} className={`chat-bubble ${msg.role}`}>
+                                            {msg.content}
+                                            <span className="chat-timestamp">
+                                                {msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
                             {/* WhatsApp-Style Message Input - Only in Manual Mode */}
                             {isManualMode && (
@@ -405,6 +428,10 @@ const InboxView = ({ leads, onSelectLead }) => {
                                 </div>
                             )}
                         </>
+                    ) : (
+                        <div className="chat-view-placeholder">
+                            <p>Select a conversation from the left</p>
+                        </div>
                     )}
                 </div>
             </div>
@@ -418,35 +445,6 @@ const InboxView = ({ leads, onSelectLead }) => {
                 />
             )}
         </>
-    );
-};
-
-// --- Chat View ---
-const ChatView = ({ lead }) => {
-    if (!lead) { 
-        return (
-            <div className="chat-view-placeholder">
-                <p>Select a conversation from the left.</p>
-            </div>
-        ); 
-    }
-    
-    return (
-        <div className="chat-view">
-            <div className="chat-view-header">
-                <h3>Conversation with {lead.name}</h3>
-            </div>
-            <div className="conversation-log">
-                {lead.conversation?.map((msg, index) => (
-                    <div key={index} className={`chat-bubble ${msg.role}`}>
-                        {msg.content}
-                        <span className="chat-timestamp">
-                            {msg.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </div>
     );
 };
 
@@ -497,7 +495,7 @@ export default function LeadsPage() {
                     <PipelineView leads={leads.filter(l => l.status !== 'Closed')} onSelectLead={handleSelectLead} /> 
                 )}
                 {activeView === 'inbox' && ( 
-                    <InboxView leads={leads} onSelectLead={handleSelectLead} /> 
+                    <InboxView leads={leads} /> 
                 )}
             </div>
             {selectedLead && (
