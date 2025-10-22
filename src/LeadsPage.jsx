@@ -119,8 +119,15 @@ const InboxView = ({ leads, onSelectLead }) => {
     useEffect(() => { 
         if (leads.length > 0 && !selectedConv) { 
             setSelectedConv(leads[0]); 
-        } 
-    }, [leads, selectedConv]);
+        }
+        // Update selectedConv when leads data changes (from onSnapshot)
+        if (selectedConv) {
+            const updatedLead = leads.find(l => l.id === selectedConv.id);
+            if (updatedLead) {
+                setSelectedConv(updatedLead);
+            }
+        }
+    }, [leads]);
 
     const handleModeToggle = async () => {
         if (!selectedConv) return;
@@ -128,22 +135,32 @@ const InboxView = ({ leads, onSelectLead }) => {
         setIsUpdatingMode(true);
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
-            const isAI = selectedConv.conversationMode !== 'manual';
+            const currentMode = selectedConv.conversationMode || 'ai'; // Default to 'ai' if undefined
+            const newMode = currentMode === 'ai' ? 'manual' : 'ai';
             
-            await updateDoc(leadRef, {
-                conversationMode: isAI ? 'manual' : 'ai',
-                takenOverBy: isAI ? user.uid : null,
-                takenOverAt: isAI ? Timestamp.now() : null
-            });
+            const updateData = {
+                conversationMode: newMode,
+                takenOverBy: newMode === 'manual' ? user.uid : null,
+                takenOverAt: newMode === 'manual' ? Timestamp.now() : null,
+                lastContactAt: Timestamp.now()
+            };
 
-            // Update local state immediately
-            setSelectedConv({
-                ...selectedConv,
-                conversationMode: isAI ? 'manual' : 'ai'
-            });
+            await updateDoc(leadRef, updateData);
+
+            console.log(`✅ Conversation mode toggled to: ${newMode}`);
+            
+            // The onSnapshot listener will automatically update the UI
         } catch (error) {
-            console.error("Error toggling mode:", error);
-            alert("Failed to toggle conversation mode. Please try again.");
+            console.error("❌ Error toggling mode:", error);
+            
+            // Show detailed error
+            if (error.code === 'permission-denied') {
+                alert("Permission denied. Please update your Firestore security rules to allow lead updates.");
+            } else if (error.code === 'not-found') {
+                alert("Lead document not found.");
+            } else {
+                alert(`Failed to toggle mode: ${error.message}`);
+            }
         } finally {
             setIsUpdatingMode(false);
         }
@@ -156,21 +173,24 @@ const InboxView = ({ leads, onSelectLead }) => {
                     <input type="text" placeholder="Search conversations..." className="inbox-search" />
                 </div>
                 <div className="conversation-items">
-                    {leads.map(lead => (
-                        <div 
-                            key={lead.id} 
-                            className={`conversation-item ${selectedConv?.id === lead.id ? 'active' : ''}`} 
-                            onClick={() => setSelectedConv(lead)}
-                        >
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
-                                <p className="item-name">{lead.name || lead.contact}</p>
-                                <span style={{fontSize: '18px'}}>{lead.conversationMode === 'manual' ? '👤' : '🤖'}</span>
+                    {leads.map(lead => {
+                        const mode = lead.conversationMode || 'ai';
+                        return (
+                            <div 
+                                key={lead.id} 
+                                className={`conversation-item ${selectedConv?.id === lead.id ? 'active' : ''}`} 
+                                onClick={() => setSelectedConv(lead)}
+                            >
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
+                                    <p className="item-name">{lead.name || lead.contact}</p>
+                                    <span style={{fontSize: '18px'}}>{mode === 'manual' ? '👤' : '🤖'}</span>
+                                </div>
+                                <p className="item-snippet">
+                                    {lead.conversation?.slice(-1)[0]?.content?.substring(0, 40) || 'No messages'}...
+                                </p>
                             </div>
-                            <p className="item-snippet">
-                                {lead.conversation?.slice(-1)[0]?.content?.substring(0, 40) || 'No messages'}...
-                            </p>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
             <div className="inbox-chat-pane">
@@ -189,10 +209,10 @@ const InboxView = ({ leads, onSelectLead }) => {
                         }}>
                             <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                 <span style={{fontSize: '20px'}}>
-                                    {selectedConv.conversationMode === 'manual' ? '👤' : '🤖'}
+                                    {(selectedConv.conversationMode || 'ai') === 'manual' ? '👤' : '🤖'}
                                 </span>
                                 <span style={{fontWeight: 600, color: 'var(--ink)'}}>
-                                    {selectedConv.conversationMode === 'manual' ? "You're Responding" : 'AI Active'}
+                                    {(selectedConv.conversationMode || 'ai') === 'manual' ? "You're Responding" : 'AI Active'}
                                 </span>
                             </div>
                             <button 
@@ -201,7 +221,7 @@ const InboxView = ({ leads, onSelectLead }) => {
                                 disabled={isUpdatingMode}
                                 style={{minWidth: '120px'}}
                             >
-                                {isUpdatingMode ? 'Loading...' : (selectedConv.conversationMode === 'manual' ? 'Resume AI' : 'Take Over')}
+                                {isUpdatingMode ? 'Loading...' : ((selectedConv.conversationMode || 'ai') === 'manual' ? 'Resume AI' : 'Take Over')}
                             </button>
                         </div>
                         
