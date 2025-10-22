@@ -1,4 +1,4 @@
-/* src/LeadsPage.css - COMPLETE FIXED VERSION */
+/* src/LeadsPage.css - FIXED SCROLLING VERSION */
 
 /* === PAGE HEADER === */
 .page-title-header { 
@@ -130,11 +130,13 @@
     color: #a16207; 
 }
 
-/* === INBOX VIEW === */
+/* === INBOX VIEW - FIXED LAYOUT === */
 .inbox-view { 
     display: grid; 
     grid-template-columns: 320px 1fr; 
-    height: 70vh; 
+    height: calc(100vh - 280px); /* Fixed height based on viewport */
+    min-height: 500px;
+    max-height: 800px;
     background: var(--bg-white); 
     border: 1px solid var(--border-color); 
     border-radius: 12px; 
@@ -145,11 +147,13 @@
     display: flex; 
     flex-direction: column; 
     border-right: 1px solid var(--border-color); 
+    height: 100%;
 }
 
 .inbox-header { 
     padding: 16px; 
     border-bottom: 1px solid var(--border-color); 
+    flex-shrink: 0;
 }
 
 .inbox-search { 
@@ -195,18 +199,32 @@
     text-overflow: ellipsis; 
 }
 
-/* === CHAT VIEW === */
+/* === CHAT PANE - FIXED HEIGHT === */
 .inbox-chat-pane {
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
 }
 
+/* === MODE TOGGLE BANNER === */
+.mode-toggle-banner {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f0fdf4;
+    flex-shrink: 0;
+}
+
+/* === CHAT VIEW - PROPER FLEX LAYOUT === */
 .chat-view { 
     display: flex; 
     flex-direction: column;
     flex-grow: 1;
     overflow: hidden;
+    min-height: 0; /* Critical for flex scrolling */
 }
 
 .chat-view-header { 
@@ -228,6 +246,7 @@
     color: var(--ink-light); 
 }
 
+/* === CONVERSATION LOG - SCROLLABLE === */
 .conversation-log { 
     flex-grow: 1;
     overflow-y: auto;
@@ -235,21 +254,29 @@
     background-color: var(--bg-light); 
     display: flex; 
     flex-direction: column; 
-    gap: 12px; 
+    gap: 12px;
+    min-height: 0; /* Critical for flex scrolling */
 }
 
-/* === MODE TOGGLE BANNER === */
-.mode-toggle-banner {
-    padding: 16px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #f0fdf4;
-    flex-shrink: 0;
+/* Custom scrollbar for conversation log */
+.conversation-log::-webkit-scrollbar {
+    width: 6px;
 }
 
-/* === WHATSAPP INPUT === */
+.conversation-log::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.conversation-log::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.conversation-log::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* === WHATSAPP INPUT - FIXED BOTTOM === */
 .whatsapp-input-container {
     display: flex;
     align-items: flex-end;
@@ -470,6 +497,10 @@
     margin: 16px 0; 
 }
 
+.conversation-log-section .conversation-log {
+    height: 450px;
+}
+
 /* === MOBILE === */
 .mobile-card-list { 
     display: none; 
@@ -572,6 +603,7 @@
     .inbox-view { 
         grid-template-columns: 1fr; 
         position: relative; 
+        height: calc(100vh - 200px);
     }
     
     .inbox-chat-pane { 
