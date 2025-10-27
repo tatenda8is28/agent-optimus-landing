@@ -1,4 +1,4 @@
-// src/LeadsPage.jsx - COMPLETE WORKING VERSION
+// src/LeadsPage.jsx - COMPLETE front-end file with send via backend
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -200,7 +200,7 @@ const PipelineView = ({ leads, onSelectLead }) => {
     );
 };
 
-// --- Inbox View - FIXED VERSION ---
+// --- Inbox View with Message Input & backend send ---
 const InboxView = ({ leads }) => {
     const { user } = useAuth();
     const [selectedConv, setSelectedConv] = useState(null);
@@ -210,7 +210,8 @@ const InboxView = ({ leads }) => {
     const [isSending, setIsSending] = useState(false);
     const chatLogRef = useRef(null);
     const textareaRef = useRef(null);
-    
+    const API_BASE = process.env.REACT_APP_API_BASE || '';
+
     useEffect(() => { 
         if (leads.length > 0 && !selectedConv) { 
             setSelectedConv(leads[0]); 
@@ -229,7 +230,6 @@ const InboxView = ({ leads }) => {
         }
     }, [selectedConv?.conversation]);
 
-    // Auto-focus input when switching to manual mode
     useEffect(() => {
         if (selectedConv?.conversationMode === 'manual' && textareaRef.current) {
             textareaRef.current.focus();
@@ -242,13 +242,10 @@ const InboxView = ({ leads }) => {
 
     const confirmTakeOver = async () => {
         if (!selectedConv) return;
-        
         setShowContextModal(false);
         setIsUpdatingMode(true);
-        
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
-            
             await updateDoc(leadRef, {
                 conversationMode: 'manual',
                 takenOverBy: user.uid,
@@ -260,11 +257,8 @@ const InboxView = ({ leads }) => {
                     timestamp: Timestamp.now()
                 })
             });
-            
-            console.log('✅ Agent took over - conversationMode set to "manual"');
-            
         } catch (error) {
-            console.error('❌ Error taking over:', error);
+            console.error("❌ Error taking over:", error);
             alert(`Failed to take over: ${error.message}`);
         } finally {
             setIsUpdatingMode(false);
@@ -273,11 +267,9 @@ const InboxView = ({ leads }) => {
 
     const handleResumeAI = async () => {
         if (!selectedConv) return;
-        
         setIsUpdatingMode(true);
         try {
             const leadRef = doc(db, 'leads', selectedConv.id);
-            
             await updateDoc(leadRef, {
                 conversationMode: 'ai',
                 takenOverBy: null,
@@ -289,41 +281,46 @@ const InboxView = ({ leads }) => {
                     timestamp: Timestamp.now()
                 })
             });
-            
-            console.log('✅ AI resumed - conversationMode set to "ai"');
-            
         } catch (error) {
-            console.error('❌ Error resuming AI:', error);
+            console.error("❌ Error resuming AI:", error);
             alert(`Failed to resume AI: ${error.message}`);
         } finally {
             setIsUpdatingMode(false);
         }
     };
 
+    // === NEW: send via backend to actually deliver to WhatsApp AND write Firestore ===
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !selectedConv || isSending) return;
 
         const messageToSend = messageInput.trim();
         setMessageInput('');
         setIsSending(true);
-        
+
         try {
-            const leadRef = doc(db, 'leads', selectedConv.id);
-            
-            await updateDoc(leadRef, {
-                conversation: arrayUnion({
-                    role: 'agent',
-                    content: messageToSend,
-                    timestamp: Timestamp.now(),
+            const response = await fetch(`${API_BASE}/api/sendMessage`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-agent-id': user.uid
+                },
+                body: JSON.stringify({
+                    leadId: selectedConv.id,
+                    message: messageToSend,
                     sentBy: user.email
-                }),
-                lastContactAt: Timestamp.now()
+                })
             });
 
-            console.log('✅ Message sent:', messageToSend);
-            
-            // In production, this should also trigger WhatsApp API to send the message
-            
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                console.error('Failed to send message:', err);
+                alert(`Failed to send message: ${err.error || response.statusText}`);
+                setMessageInput(messageToSend); // restore
+                return;
+            }
+
+            // success — backend wrote to Firestore; onSnapshot will refresh UI
+            console.log('✅ Sent message via backend');
         } catch (error) {
             console.error('❌ Error sending message:', error);
             alert('Failed to send message. Please try again.');
@@ -377,7 +374,6 @@ const InboxView = ({ leads }) => {
                         <>
                             <button className="back-to-list-btn" onClick={() => setSelectedConv(null)}>← Back</button>
                             
-                            {/* Mode Toggle Banner */}
                             <div className="mode-toggle-banner">
                                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                     <span style={{fontSize: '20px'}}>
@@ -397,7 +393,6 @@ const InboxView = ({ leads }) => {
                                 </button>
                             </div>
                             
-                            {/* Chat Messages */}
                             <div className="chat-view">
                                 <div className="chat-view-header">
                                     <h3>Conversation with {selectedConv.name}</h3>
@@ -414,7 +409,6 @@ const InboxView = ({ leads }) => {
                                 </div>
                             </div>
 
-                            {/* WhatsApp Input - Shows ONLY when in Manual Mode */}
                             {isManualMode && (
                                 <div className="whatsapp-input-container">
                                     <textarea
@@ -437,12 +431,9 @@ const InboxView = ({ leads }) => {
                                 </div>
                             )}
 
-                            {/* Debug Info - Remove this after testing */}
                             {process.env.NODE_ENV === 'development' && (
                                 <div style={{padding: '8px', background: '#f0f0f0', fontSize: '11px', borderTop: '1px solid #ccc'}}>
-                                    Mode: {selectedConv.conversationMode || 'ai'} | 
-                                    Is Manual: {isManualMode ? 'YES' : 'NO'} | 
-                                    Show Input: {isManualMode ? 'YES' : 'NO'}
+                                    Mode: {selectedConv.conversationMode || 'ai'} | Is Manual: {isManualMode ? 'YES' : 'NO'}
                                 </div>
                             )}
                         </>
