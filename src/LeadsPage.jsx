@@ -1,13 +1,10 @@
-// src/LeadsPage.jsx - COMPLETE front-end file that POSTS to /api/sendMessage (full)
+// src/LeadsPage.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { db } from './firebaseClient';
 import { collection, query, where, onSnapshot, doc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
 import './LeadsPage.css';
-
-// ContextSummaryModal, LeadDetailModal, PipelineView are unchanged from the last working version.
-// For brevity in this file we re-include them so the file is complete and self-contained.
 
 const ContextSummaryModal = ({ lead, onConfirm, onCancel }) => {
     const getLeadScore = (lead) => {
@@ -148,7 +145,6 @@ const PipelineView = ({ leads, onSelectLead }) => {
     );
 };
 
-// InboxView with backend send
 const InboxView = ({ leads }) => {
     const { user } = useAuth();
     const [selectedConv, setSelectedConv] = useState(null);
@@ -158,7 +154,6 @@ const InboxView = ({ leads }) => {
     const [isSending, setIsSending] = useState(false);
     const chatLogRef = useRef(null);
     const textareaRef = useRef(null);
-    const API_BASE = process.env.REACT_APP_API_BASE || '';
 
     useEffect(() => {
         if (leads.length > 0 && !selectedConv) setSelectedConv(leads[0]);
@@ -215,12 +210,14 @@ const InboxView = ({ leads }) => {
         }
     };
 
-    // full send via backend
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !selectedConv || isSending) return;
         const messageToSend = messageInput.trim();
         setMessageInput('');
         setIsSending(true);
+        
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://agentoptimus.co.za';
+        
         try {
             console.log('Sending message via API...', { leadId: selectedConv.id, messageToSend });
             const resp = await fetch(`${API_BASE}/api/sendMessage`, {
@@ -301,10 +298,6 @@ const InboxView = ({ leads }) => {
                                     <textarea ref={textareaRef} className="whatsapp-input" placeholder="Type a message..." value={messageInput} onChange={(e)=>setMessageInput(e.target.value)} onKeyDown={handleKeyDown} rows={1} disabled={isSending} />
                                     <button className="whatsapp-send-btn" onClick={handleSendMessage} disabled={!messageInput.trim() || isSending}>{isSending ? '...' : '➤'}</button>
                                 </div>
-                            )}
-
-                            {process.env.NODE_ENV === 'development' && (
-                                <div style={{padding:'8px',background:'#f0f0f0',fontSize:'11px',borderTop:'1px solid #ccc'}}>Mode: {selectedConv.conversationMode || 'ai'} | Is Manual: {isManualMode ? 'YES' : 'NO'}</div>
                             )}
                         </>
                     ) : (
